@@ -4,6 +4,7 @@ import argparse
 import sys
 
 from conf_briefing.config import load_config
+from conf_briefing.console import err_console
 
 
 def cmd_collect(args):
@@ -153,10 +154,10 @@ def main():
     try:
         commands[args.command](args)
     except (FileNotFoundError, ValueError, RuntimeError) as e:
-        print(f"Error: {e}", file=sys.stderr)
+        err_console.print(f"[red bold]Error:[/red bold] {e}")
         sys.exit(1)
     except KeyboardInterrupt:
-        print("\nInterrupted.", file=sys.stderr)
+        err_console.print("\n[dim]Interrupted.[/dim]")
         sys.exit(130)
 
 

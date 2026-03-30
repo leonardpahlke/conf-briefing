@@ -6,6 +6,7 @@ from pathlib import Path
 import jinja2
 
 from conf_briefing.config import Config
+from conf_briefing.console import console, tag
 
 
 def _load_json(path: Path) -> dict | list | None:
@@ -23,7 +24,7 @@ def render_reports(config: Config) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if not templates_dir.exists():
-        print("[report] No templates/ directory found, skipping.")
+        console.print(f"{tag('report')} No templates/ directory found, skipping.")
         return []
 
     env = jinja2.Environment(
@@ -58,7 +59,7 @@ def render_reports(config: Config) -> list[Path]:
         out_path = output_dir / output_name
         content = template.render(**context)
         out_path.write_text(content)
-        print(f"[report] Rendered {out_path}")
+        console.print(f"{tag('report')} Rendered {out_path}")
         rendered.append(out_path)
 
     # Update SUMMARY.md if reports were generated
@@ -90,4 +91,4 @@ def _update_summary(docs_src: Path, reports: list[Path]) -> None:
         content = content.rstrip() + "\n" + new_links
 
     summary_path.write_text(content)
-    print(f"[report] Updated {summary_path}")
+    console.print(f"{tag('report')} Updated {summary_path}")

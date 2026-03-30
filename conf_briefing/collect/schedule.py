@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import requests
 
 from conf_briefing.config import Config
+from conf_briefing.console import console, tag
 
 # Map URL domain patterns to scraper modules.
 # Each scraper must expose: scrape_schedule(url: str) -> list[dict]
@@ -42,7 +43,7 @@ def _scrape_from_provider(url: str, cache_dir: Path | None = None) -> list[dict]
 
     provider_name, module_path = match
     mod = importlib.import_module(module_path)
-    print(f"[collect] Using {provider_name} provider for schedule")
+    console.print(f"{tag('collect')} Using {provider_name} provider for schedule")
     return mod.scrape_schedule(url, cache_dir=cache_dir)
 
 
@@ -103,7 +104,7 @@ def fetch_schedule(config: Config) -> Path:
     out_path = data_dir / "schedule.json"
 
     if config.conference.schedule_url and config.conference.sched_api_key:
-        print("[collect] Fetching schedule from Sched API...")
+        console.print(f"{tag('collect')} Fetching schedule from Sched API...")
         raw_sessions = fetch_from_sched_api(
             config.conference.schedule_url, config.conference.sched_api_key
         )
@@ -111,13 +112,13 @@ def fetch_schedule(config: Config) -> Path:
         talks_dir = data_dir / "talks"
         raw_sessions = _scrape_from_provider(config.conference.schedule_url, cache_dir=talks_dir)
     elif config.conference.schedule:
-        print(f"[collect] Loading schedule from file: {config.conference.schedule}")
+        console.print(f"{tag('collect')} Loading schedule from file: {config.conference.schedule}")
         raw_sessions = load_from_file(config.conference.schedule)
     else:
-        print("[collect] No schedule source configured, skipping.")
+        console.print(f"{tag('collect')} No schedule source configured, skipping.")
         return out_path
 
     sessions = [coerce_session(s) for s in raw_sessions]
     out_path.write_text(json.dumps(sessions, indent=2, ensure_ascii=False))
-    print(f"[collect] Saved {len(sessions)} sessions to {out_path}")
+    console.print(f"{tag('collect')} Saved {len(sessions)} sessions to {out_path}")
     return out_path

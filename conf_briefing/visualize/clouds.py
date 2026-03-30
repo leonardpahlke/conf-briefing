@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from conf_briefing.config import Config
+from conf_briefing.console import console, tag
 
 
 def generate_wordcloud(config: Config) -> Path | None:
@@ -12,7 +13,7 @@ def generate_wordcloud(config: Config) -> Path | None:
     agenda_path = data_dir / "analysis_agenda.json"
 
     if not agenda_path.exists():
-        print("[visualize] No agenda analysis found, skipping word cloud.")
+        console.print(f"{tag('visualize')} No agenda analysis found, skipping word cloud.")
         return None
 
     agenda = json.loads(agenda_path.read_text())
@@ -27,7 +28,7 @@ def generate_wordcloud(config: Config) -> Path | None:
             words[kw] = words.get(kw, 0) + 1
 
     if not words:
-        print("[visualize] No keywords found, skipping word cloud.")
+        console.print(f"{tag('visualize')} No keywords found, skipping word cloud.")
         return None
 
     from wordcloud import WordCloud
@@ -45,5 +46,5 @@ def generate_wordcloud(config: Config) -> Path | None:
 
     out = images_dir / "keyword_cloud.png"
     wc.to_file(str(out))
-    print(f"[visualize] Generated {out}")
+    console.print(f"{tag('visualize')} Generated {out}")
     return out

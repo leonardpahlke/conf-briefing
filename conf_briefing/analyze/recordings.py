@@ -5,6 +5,7 @@ from pathlib import Path
 
 from conf_briefing.analyze.llm import query_llm_json
 from conf_briefing.config import Config
+from conf_briefing.console import console, progress_bar, tag
 
 SYSTEM_PROMPT = """\
 You are a conference talk analyst. You extract key insights from talk transcripts. \
@@ -106,28 +107,39 @@ def analyze_recordings(config: Config) -> Path:
         matched_path = data_dir / "schedule_clean.json"
 
     if not matched_path.exists():
-        print("[analyze] No data found, skipping recording analysis.")
+        console.print(f"{tag('analyze')} No data found, skipping recording analysis.")
         return out_path
 
     sessions = json.loads(matched_path.read_text())
     sessions_with_transcripts = [s for s in sessions if s.get("transcript")]
 
     if not sessions_with_transcripts:
-        print("[analyze] No transcripts found, skipping recording analysis.")
+        console.print(f"{tag('analyze')} No transcripts found, skipping recording analysis.")
         return out_path
 
-    print(f"[analyze] Analyzing {len(sessions_with_transcripts)} talk transcripts...")
+    console.print(
+        f"{tag('analyze')} Analyzing {len(sessions_with_transcripts)} talk transcripts..."
+    )
 
     # Analyze individual talks
     talk_analyses = []
-    for i, session in enumerate(sessions_with_transcripts, 1):
-        print(f"[analyze]   ({i}/{len(sessions_with_transcripts)}) {session['title'][:60]}...")
-        try:
-            result = analyze_single_talk(config, session)
-            if result:
-                talk_analyses.append(result)
-        except Exception as e:
-            print(f"[analyze]   Failed: {e}")
+    with progress_bar() as pb:
+        task = pb.add_task(
+            f"{tag('analyze')} Analyzing talks", total=len(sessions_with_transcripts)
+        )
+        for session in sessions_with_transcripts:
+            title = session["title"][:50]
+            try:
+                result = analyze_single_talk(config, session)
+                if result:
+                    talk_analyses.append(result)
+                pb.update(task, advance=1, description=f"{tag('analyze')} {title}")
+            except Exception as e:
+                pb.update(
+                    task, advance=1,
+                    description=f"{tag('analyze')} {title} [red]failed[/red]",
+                )
+                console.print(f"  {tag('analyze')} [red]{title} — {e}[/red]")
 
     # Save individual analyses
     individual_path = data_dir / "analysis_talks.json"
@@ -135,12 +147,15 @@ def analyze_recordings(config: Config) -> Path:
 
     # Synthesize across talks
     if talk_analyses:
-        print(f"[analyze] Synthesizing insights across {len(talk_analyses)} talks...")
-        synthesis = synthesize_analyses(config, talk_analyses)
+        console.print(
+            f"{tag('analyze')} Synthesizing insights across {len(talk_analyses)} talks..."
+        )
+        with console.status(f"{tag('analyze')} Synthesizing with Claude..."):
+            synthesis = synthesize_analyses(config, talk_analyses)
         synthesis["individual_talks"] = talk_analyses
     else:
         synthesis = {"individual_talks": [], "narrative": "No talks analyzed."}
 
     out_path.write_text(json.dumps(synthesis, indent=2, ensure_ascii=False))
-    print(f"[analyze] Recording analysis saved to {out_path}")
+    console.print(f"{tag('analyze')} Recording analysis saved to {out_path}")
     return out_path

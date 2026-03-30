@@ -7,6 +7,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 
 from conf_briefing.config import Config
+from conf_briefing.console import console, tag
 
 
 def clean_text(text: str) -> str:
@@ -42,7 +43,7 @@ def normalize_schedule(config: Config) -> Path:
     schedule_path = data_dir / "schedule.json"
 
     if not schedule_path.exists():
-        print("[clean] No schedule.json found, skipping normalization.")
+        console.print(f"{tag('clean')} No schedule.json found, skipping normalization.")
         return schedule_path
 
     sessions = json.loads(schedule_path.read_text())
@@ -59,7 +60,9 @@ def normalize_schedule(config: Config) -> Path:
 
     out_path = data_dir / "schedule_clean.json"
     out_path.write_text(json.dumps(unique, indent=2, ensure_ascii=False))
-    print(f"[clean] Normalized {len(unique)} sessions (from {len(sessions)}) → {out_path}")
+    console.print(
+        f"{tag('clean')} Normalized {len(unique)} sessions (from {len(sessions)}) → {out_path}"
+    )
     return out_path
 
 
@@ -76,13 +79,13 @@ def match_transcripts(config: Config) -> Path:
     out_path = data_dir / "matched.json"
 
     if not schedule_path.exists():
-        print("[clean] No cleaned schedule found, skipping transcript matching.")
+        console.print(f"{tag('clean')} No cleaned schedule found, skipping transcript matching.")
         return out_path
 
     sessions = json.loads(schedule_path.read_text())
 
     if not transcripts_dir.exists():
-        print("[clean] No transcripts directory found, skipping matching.")
+        console.print(f"{tag('clean')} No transcripts directory found, skipping matching.")
         # Write sessions without transcripts
         out_path.write_text(json.dumps(sessions, indent=2, ensure_ascii=False))
         return out_path
@@ -94,7 +97,9 @@ def match_transcripts(config: Config) -> Path:
         if "video_id" in data:
             transcripts[data["video_id"]] = data
 
-    print(f"[clean] Matching {len(transcripts)} transcripts to {len(sessions)} sessions...")
+    console.print(
+        f"{tag('clean')} Matching {len(transcripts)} transcripts to {len(sessions)} sessions..."
+    )
 
     # Simple greedy matching: for each transcript, find best matching session
     for session in sessions:
@@ -135,5 +140,5 @@ def match_transcripts(config: Config) -> Path:
             })
 
     out_path.write_text(json.dumps(sessions, indent=2, ensure_ascii=False))
-    print(f"[clean] Matched {matched_count} transcripts, saved to {out_path}")
+    console.print(f"{tag('clean')} Matched {matched_count} transcripts, saved to {out_path}")
     return out_path

@@ -5,13 +5,14 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from conf_briefing.console import console, tag
+
 
 @dataclass
 class RecordingsConfig:
-    youtube_playlist: str = ""
+    source_url: str = ""  # playlist/channel URL (provider auto-detected from domain)
     video_ids: list[str] = field(default_factory=list)
-    strategy: str = "api"  # "api" (youtube subtitles) or "local" (yt-dlp + whisper)
-    whisper_model: str = "base"  # tiny, base, small, medium, large-v3
+    video_format: str = "mp4"
 
 
 @dataclass
@@ -64,7 +65,10 @@ def load_config(path: str | Path) -> Config:
     known_sections = {"conference", "llm", "query"}
     for key in raw:
         if key not in known_sections:
-            print(f"[config] Warning: unknown config section [{key}] ignored")
+            console.print(
+                f"{tag('config')} [yellow]Warning: unknown config section "
+                f"\\[{key}] ignored[/yellow]"
+            )
 
     conf_raw = raw.get("conference", {})
     _warn_unknown(
@@ -76,14 +80,13 @@ def load_config(path: str | Path) -> Config:
     recordings_raw = conf_raw.get("recordings", {})
     _warn_unknown(
         recordings_raw,
-        {"youtube_playlist", "video_ids", "strategy", "whisper_model"},
+        {"source_url", "video_ids", "video_format"},
         "conference.recordings",
     )
     recordings = RecordingsConfig(
-        youtube_playlist=recordings_raw.get("youtube_playlist", ""),
+        source_url=recordings_raw.get("source_url", ""),
         video_ids=recordings_raw.get("video_ids", []),
-        strategy=recordings_raw.get("strategy", "api"),
-        whisper_model=recordings_raw.get("whisper_model", "base"),
+        video_format=recordings_raw.get("video_format", "mp4"),
     )
 
     conference = ConferenceConfig(
@@ -120,4 +123,7 @@ def _warn_unknown(raw: dict, known: set[str], section: str) -> None:
     """Warn about unknown keys in a config section."""
     unknown = set(raw.keys()) - known
     if unknown:
-        print(f"[config] Warning: unknown [{section}] keys ignored: {', '.join(sorted(unknown))}")
+        console.print(
+            f"{tag('config')} [yellow]Warning: unknown \\[{section}] keys ignored: "
+            f"{', '.join(sorted(unknown))}[/yellow]"
+        )

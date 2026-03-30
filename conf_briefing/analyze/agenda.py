@@ -5,6 +5,7 @@ from pathlib import Path
 
 from conf_briefing.analyze.llm import query_llm_json
 from conf_briefing.config import Config
+from conf_briefing.console import console, tag
 
 SYSTEM_PROMPT = """\
 You are a conference analysis expert. You analyze conference schedules to identify \
@@ -48,7 +49,7 @@ def analyze_agenda(config: Config) -> Path:
     out_path = data_dir / "analysis_agenda.json"
 
     if not schedule_path.exists():
-        print("[analyze] No cleaned schedule found, skipping agenda analysis.")
+        console.print(f"{tag('analyze')} No cleaned schedule found, skipping agenda analysis.")
         return out_path
 
     sessions = json.loads(schedule_path.read_text())
@@ -68,9 +69,10 @@ def analyze_agenda(config: Config) -> Path:
         schedule_json=json.dumps(condensed, indent=2, ensure_ascii=False),
     )
 
-    print(f"[analyze] Running agenda analysis on {len(sessions)} sessions...")
-    result = query_llm_json(config, SYSTEM_PROMPT, prompt, max_tokens=8192)
+    console.print(f"{tag('analyze')} Running agenda analysis on {len(sessions)} sessions...")
+    with console.status(f"{tag('analyze')} Analyzing agenda with Claude..."):
+        result = query_llm_json(config, SYSTEM_PROMPT, prompt, max_tokens=8192)
 
     out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False))
-    print(f"[analyze] Agenda analysis saved to {out_path}")
+    console.print(f"{tag('analyze')} Agenda analysis saved to {out_path}")
     return out_path

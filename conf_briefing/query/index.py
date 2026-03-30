@@ -3,6 +3,7 @@
 import contextlib
 
 from conf_briefing.config import Config
+from conf_briefing.console import progress_bar, tag
 from conf_briefing.query.chunker import Chunk
 
 COLLECTION_NAME = "conf_briefing"
@@ -47,15 +48,17 @@ def build_index(config: Config, chunks: list[Chunk]) -> int:
 
     # Batch upsert
     total = 0
-    for i in range(0, len(chunks), BATCH_SIZE):
-        batch = chunks[i : i + BATCH_SIZE]
-        collection.upsert(
-            ids=[c.id for c in batch],
-            documents=[c.text for c in batch],
-            metadatas=[c.metadata for c in batch],
-        )
-        total += len(batch)
-        print(f"[index]   Indexed {total}/{len(chunks)} chunks...")
+    with progress_bar() as pb:
+        task = pb.add_task(f"{tag('index')} Indexing chunks", total=len(chunks))
+        for i in range(0, len(chunks), BATCH_SIZE):
+            batch = chunks[i : i + BATCH_SIZE]
+            collection.upsert(
+                ids=[c.id for c in batch],
+                documents=[c.text for c in batch],
+                metadatas=[c.metadata for c in batch],
+            )
+            total += len(batch)
+            pb.update(task, advance=len(batch))
 
     return total
 

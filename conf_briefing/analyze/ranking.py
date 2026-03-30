@@ -5,6 +5,7 @@ from pathlib import Path
 
 from conf_briefing.analyze.llm import query_llm_json
 from conf_briefing.config import Config
+from conf_briefing.console import console, tag
 
 SYSTEM_PROMPT = """\
 You are a conference analysis expert. You rank and evaluate topic clusters \
@@ -45,14 +46,14 @@ def rank_clusters(config: Config) -> Path:
     out_path = data_dir / "analysis_ranking.json"
 
     if not agenda_path.exists():
-        print("[analyze] No agenda analysis found, skipping ranking.")
+        console.print(f"{tag('analyze')} No agenda analysis found, skipping ranking.")
         return out_path
 
     agenda = json.loads(agenda_path.read_text())
     clusters = agenda.get("clusters", [])
 
     if not clusters:
-        print("[analyze] No clusters found in agenda analysis, skipping ranking.")
+        console.print(f"{tag('analyze')} No clusters found in agenda analysis, skipping ranking.")
         return out_path
 
     eval_topics = ["general industry trends", "emerging technology", "practical applicability"]
@@ -63,9 +64,10 @@ def rank_clusters(config: Config) -> Path:
         clusters_json=json.dumps(clusters, indent=2, ensure_ascii=False),
     )
 
-    print(f"[analyze] Ranking {len(clusters)} clusters...")
-    result = query_llm_json(config, SYSTEM_PROMPT, prompt, max_tokens=8192)
+    console.print(f"{tag('analyze')} Ranking {len(clusters)} clusters...")
+    with console.status(f"{tag('analyze')} Ranking clusters with Claude..."):
+        result = query_llm_json(config, SYSTEM_PROMPT, prompt, max_tokens=8192)
 
     out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False))
-    print(f"[analyze] Cluster ranking saved to {out_path}")
+    console.print(f"{tag('analyze')} Cluster ranking saved to {out_path}")
     return out_path

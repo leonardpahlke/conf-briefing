@@ -2,9 +2,6 @@
 default:
     @just --list
 
-# Default event (override with: just --set event myconf run)
-event := "kubecon-eu-2026"
-
 # --- Setup ---
 
 # Sync Python dependencies (runs automatically in devshell)
@@ -13,38 +10,20 @@ uv-sync:
 
 # --- Pipeline ---
 
-# Fetch schedule and transcripts
-collect:
+# Collect schedule and recordings for an event
+collect event:
     uv run conf-briefing -c events/{{event}}.toml collect
 
-# Normalize and structure data
-clean:
+# Generate reports from collected data
+report event:
     uv run conf-briefing -c events/{{event}}.toml clean
-
-# Run LLM analysis
-analyze:
     uv run conf-briefing -c events/{{event}}.toml analyze
-
-# Generate charts and diagrams
-visualize:
     uv run conf-briefing -c events/{{event}}.toml visualize
-
-# Render report templates
-report:
     uv run conf-briefing -c events/{{event}}.toml report
 
-# Run the full pipeline
-run:
-    uv run conf-briefing -c events/{{event}}.toml run
-
-# --- RAG Query ---
-
-# Build vector index from analysis data
-index:
+# Interactive Q&A about an event
+query event question:
     uv run conf-briefing -c events/{{event}}.toml index
-
-# Ask a question about the conference
-ask question:
     uv run conf-briefing -c events/{{event}}.toml ask "{{question}}"
 
 # --- Docs ---

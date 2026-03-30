@@ -6,6 +6,7 @@ from pathlib import Path
 import plotly.graph_objects as go
 
 from conf_briefing.config import Config
+from conf_briefing.console import console, tag
 
 
 def _ensure_images_dir(config: Config) -> Path:
@@ -38,7 +39,7 @@ def chart_topic_frequency(agenda: dict, images_dir: Path) -> Path | None:
 
     out = images_dir / "topic_frequency.svg"
     fig.write_image(str(out), format="svg")
-    print(f"[visualize] Generated {out}")
+    console.print(f"{tag('visualize')} Generated {out}")
     return out
 
 
@@ -67,7 +68,7 @@ def chart_company_presence(agenda: dict, images_dir: Path) -> Path | None:
 
     out = images_dir / "company_presence.svg"
     fig.write_image(str(out), format="svg")
-    print(f"[visualize] Generated {out}")
+    console.print(f"{tag('visualize')} Generated {out}")
     return out
 
 
@@ -88,7 +89,7 @@ def chart_track_distribution(agenda: dict, images_dir: Path) -> Path | None:
 
     out = images_dir / "track_distribution.svg"
     fig.write_image(str(out), format="svg")
-    print(f"[visualize] Generated {out}")
+    console.print(f"{tag('visualize')} Generated {out}")
     return out
 
 
@@ -114,7 +115,7 @@ def chart_cluster_relevance(ranking: list[dict], images_dir: Path) -> Path | Non
 
     out = images_dir / "cluster_relevance.svg"
     fig.write_image(str(out), format="svg")
-    print(f"[visualize] Generated {out}")
+    console.print(f"{tag('visualize')} Generated {out}")
     return out
 
 
@@ -143,6 +144,6 @@ def generate_charts(config: Config) -> list[Path]:
                 generated.append(result)
 
     if not generated:
-        print("[visualize] No analysis data found, no charts generated.")
+        console.print(f"{tag('visualize')} No analysis data found, no charts generated.")
 
     return generated

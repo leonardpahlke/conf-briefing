@@ -2,7 +2,8 @@
 
 This module is intentionally decoupled from the rest of the project.
 It only depends on requests + beautifulsoup4 and returns plain dicts.
-When Cloudflare blocks requests, it falls back to Playwright (optional).
+When Cloudflare blocks requests, it falls back to Patchright (optional)
+to solve the JS challenge in a real browser.
 
 Usage:
     from conf_briefing.collect.sched_scraper import scrape_schedule
@@ -10,9 +11,7 @@ Usage:
 """
 
 import json
-import os
 import re
-import shutil
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -20,6 +19,8 @@ from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
+
+from conf_briefing.console import console, progress_bar, tag
 
 HEADERS = {
     "User-Agent": (
@@ -38,13 +39,28 @@ BACKOFF_SCHEDULE = [2, 4, 8, 10, 10, 10]  # seconds
 # Minimum delay between starting new requests (across all workers)
 REQUEST_SPACING = 0.4  # seconds
 
+# Persistent browser profile for Cloudflare cookie reuse across runs
+_BROWSER_PROFILE_DIR = Path.home() / ".cache" / "conf-briefing" / "browser-profile"
+
+
+def _poll_for_cf_clearance(context, timeout: int = 120, interval: float = 1.0) -> str | None:
+    """Poll browser cookies until cf_clearance appears or timeout."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        for cookie in context.cookies():
+            if cookie["name"] == "cf_clearance":
+                return cookie["value"]
+        time.sleep(interval)
+    return None
+
 
 def _get_session(base_url: str) -> requests.Session:
-    """Create a requests session, using Playwright to solve CF challenges if needed.
+    """Create a requests session, using Patchright to solve CF challenges if needed.
 
     Tries a plain request first. If Cloudflare blocks it (403 with
-    cf-mitigated header), uses Playwright to solve the JS challenge
-    and extracts the clearance cookies for subsequent requests.
+    cf-mitigated header), launches a real Chrome browser via Patchright
+    so the user can solve the challenge. Polls for the cf_clearance cookie,
+    then transfers cookies + user-agent to a requests session.
     """
     session = requests.Session()
     session.headers.update(HEADERS)
@@ -57,32 +73,48 @@ def _get_session(base_url: str) -> requests.Session:
     if "cf-mitigated" not in resp.headers:
         resp.raise_for_status()
 
-    print("[sched] Cloudflare JS challenge detected, launching browser...")
+    console.print(
+        f"{tag('sched')} [yellow]Cloudflare JS challenge detected, launching browser...[/yellow]"
+    )
     try:
-        from playwright.sync_api import sync_playwright
+        from patchright.sync_api import sync_playwright
     except ImportError as e:
         raise RuntimeError(
             "sched.com is behind Cloudflare protection and requires a browser.\n"
-            "Install Playwright:  uv sync --extra scrape && playwright install chromium\n"
+            "Install Patchright:  uv sync --extra scrape && patchright install chrome\n"
             "Or provide a local schedule file via [conference] schedule = 'path/to/file.json'"
         ) from e
 
-    # Prefer system chromium (e.g. from Nix) over Playwright's bundled one
-    chrome_path = os.environ.get("PLAYWRIGHT_CHROMIUM_PATH") or shutil.which("chromium")
-    launch_args = {"headless": True}
-    if chrome_path:
-        launch_args["executable_path"] = chrome_path
+    _BROWSER_PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+
+    console.print(
+        f"{tag('sched')} [yellow]Solve the Cloudflare challenge in the browser window...[/yellow]"
+    )
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(**launch_args)
-        context = browser.new_context()
-        page = context.new_page()
-        page.goto(base_url, wait_until="networkidle")
-        # Wait for CF challenge to resolve (page will redirect)
-        page.wait_for_load_state("networkidle")
-        cookies = context.cookies()
-        browser.close()
+        context = pw.chromium.launch_persistent_context(
+            user_data_dir=str(_BROWSER_PROFILE_DIR),
+            channel="chrome",
+            headless=False,
+            no_viewport=True,
+        )
+        page = context.pages[0] if context.pages else context.new_page()
+        page.goto(base_url, timeout=120_000, wait_until="domcontentloaded")
 
+        cf_clearance = _poll_for_cf_clearance(context, timeout=120)
+        if not cf_clearance:
+            context.close()
+            raise RuntimeError(
+                "Cloudflare challenge was not solved within 120 seconds.\n"
+                "Or provide a local schedule file via [conference] schedule = 'path/to/file.json'"
+            )
+
+        cookies = context.cookies()
+        user_agent = page.evaluate("navigator.userAgent")
+        context.close()
+
+    # Apply cookies and the browser's real user-agent to the requests session
+    session.headers["User-Agent"] = user_agent
     for cookie in cookies:
         session.cookies.set(cookie["name"], cookie["value"], domain=cookie["domain"])
 
@@ -91,11 +123,11 @@ def _get_session(base_url: str) -> requests.Session:
     if resp.status_code == 403:
         raise RuntimeError(
             "Could not bypass Cloudflare protection even with browser.\n"
-            "Try running: playwright install chromium\n"
+            "Try running: patchright install chrome\n"
             "Or provide a local schedule file via [conference] schedule = 'path/to/file.json'"
         )
 
-    print("[sched] Cloudflare challenge solved, cookies acquired")
+    console.print(f"{tag('sched')} Cloudflare challenge solved, cookies acquired")
     return session
 
 
@@ -200,15 +232,18 @@ def _fetch_all_details(
         to_fetch.append((idx, sess))
 
     if cached_count:
-        print(f"[sched] {cached_count}/{total} sessions cached, {len(to_fetch)} to fetch")
+        console.print(
+            f"{tag('sched')} {cached_count}/{total} sessions cached, {len(to_fetch)} to fetch"
+        )
 
     if not to_fetch:
-        print(f"[sched] All {total} sessions cached.")
+        console.print(f"{tag('sched')} All {total} sessions cached.")
         return sessions
 
-    print(f"[sched] Fetching details for {len(to_fetch)} sessions ({max_workers} concurrent)...")
-
-    done_count = 0
+    console.print(
+        f"{tag('sched')} Fetching details for {len(to_fetch)} sessions "
+        f"({max_workers} concurrent)..."
+    )
 
     # Thread-local sessions (requests.Session is not thread-safe)
     _local = threading.local()
@@ -232,34 +267,38 @@ def _fetch_all_details(
         except Exception as e:
             return idx, None, f"failed: {e}"
 
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        # Submit work gradually with spacing to avoid rate limits
-        futures = {}
-        for item in to_fetch:
-            futures[pool.submit(_fetch_one, item)] = item
-            time.sleep(REQUEST_SPACING)
+    def _handle_result(future, pb, task):
+        idx, detail, title_or_err = future.result()
+        if detail is not None:
+            sessions[idx].update(detail)
+            sessions[idx].pop("_detail_url", None)
+            if cache_dir:
+                detail_url = sessions[idx].get("sched_url", "")
+                sched_id = _sched_id_from_url(detail_url)
+                if sched_id:
+                    cache_file = cache_dir / f"{sched_id}.json"
+                    cache_file.write_text(
+                        json.dumps(sessions[idx], indent=2, ensure_ascii=False)
+                    )
+        pb.update(task, advance=1, description=f"{tag('sched')} {title_or_err[:50]}")
 
-        for future in as_completed(futures):
-            idx, detail, title_or_err = future.result()
-            done_count += 1
-            progress = cached_count + done_count
+    with progress_bar() as pb:
+        task = pb.add_task(f"{tag('sched')} Fetching sessions", total=len(to_fetch))
 
-            if detail is not None:
-                sessions[idx].update(detail)
-                sessions[idx].pop("_detail_url", None)
-                print(f"[sched]   ({progress}/{total}) {title_or_err[:60]}")
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            pending: dict = {}
+            for item in to_fetch:
+                pending[pool.submit(_fetch_one, item)] = item
+                time.sleep(REQUEST_SPACING)
+                # Drain completed futures during submission
+                done = [f for f in pending if f.done()]
+                for f in done:
+                    del pending[f]
+                    _handle_result(f, pb, task)
 
-                # Cache to disk
-                if cache_dir:
-                    detail_url = sessions[idx].get("sched_url", "")
-                    sched_id = _sched_id_from_url(detail_url)
-                    if sched_id:
-                        cache_file = cache_dir / f"{sched_id}.json"
-                        cache_file.write_text(
-                            json.dumps(sessions[idx], indent=2, ensure_ascii=False)
-                        )
-            else:
-                print(f"[sched]   ({progress}/{total}) {title_or_err}")
+            # Process remaining futures
+            for future in as_completed(pending):
+                _handle_result(future, pb, task)
 
     return sessions
 

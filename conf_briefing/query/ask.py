@@ -1,7 +1,10 @@
 """RAG question answering: retrieve chunks and generate answers via Claude."""
 
+from rich.table import Table
+
 from conf_briefing.analyze.llm import query_llm
 from conf_briefing.config import Config
+from conf_briefing.console import console
 from conf_briefing.query.index import query_index
 
 SYSTEM_PROMPT = """\
@@ -79,15 +82,22 @@ def ask_question(
         return "No relevant information found in the index. Try running `index` first."
 
     if verbose:
-        print(f"\n[ask] Retrieved {len(hits)} chunks:")
+        table = Table(title=f"Retrieved {len(hits)} chunks")
+        table.add_column("#", justify="right", style="dim")
+        table.add_column("ID", style="cyan")
+        table.add_column("Distance", justify="right")
+        table.add_column("Title")
         for i, hit in enumerate(hits):
             meta = hit["metadata"]
-            print(
-                f"  [{i + 1}] {hit['id']}  "
-                f"(distance={hit['distance']:.3f}, "
-                f"title={meta.get('talk_title', 'N/A')!r})"
+            table.add_row(
+                str(i + 1),
+                hit["id"],
+                f"{hit['distance']:.3f}",
+                meta.get("talk_title", "N/A"),
             )
-        print()
+        console.print()
+        console.print(table)
+        console.print()
 
     # Build context
     context_parts = [_format_chunk(hit, i) for i, hit in enumerate(hits)]

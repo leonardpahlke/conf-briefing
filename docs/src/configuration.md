@@ -16,7 +16,7 @@ schedule_url = "https://kccnceu2026.sched.com"
 # sched_api_key = "${SCHED_API_KEY}"
 
 [conference.recordings]
-youtube_playlist = "https://www.youtube.com/playlist?list=PLj6h78..."
+source_url = "https://www.youtube.com/playlist?list=PLj6h78..."
 
 [llm]
 model = "claude-sonnet-4-20250514"
@@ -38,20 +38,11 @@ top_k = 15
 
 ### Recordings
 
-| Field              | Description                                              | Default  |
-|--------------------|----------------------------------------------------------|----------|
-| `youtube_playlist` | YouTube playlist URL for talk recordings.                 |          |
-| `video_ids`        | List of individual YouTube video IDs.                     |          |
-| `strategy`         | `"api"` (YouTube subtitles) or `"local"` (yt-dlp + Whisper). | `"api"`  |
-| `whisper_model`    | Whisper model size when using local strategy.             | `"base"` |
-
-**Local strategy** downloads audio via yt-dlp and transcribes with OpenAI Whisper. Works on any language, no API limits. Requires the `local` extra:
-
-```sh
-uv sync --extra local
-```
-
-Whisper models from smallest/fastest to largest/most accurate: `tiny`, `base`, `small`, `medium`, `large-v3`. Works on NVIDIA (CUDA), AMD (ROCm), and CPU.
+| Field          | Description                                                   | Default |
+|----------------|---------------------------------------------------------------|---------|
+| `source_url`   | Playlist/channel URL for talk recordings (provider auto-detected from domain). |         |
+| `video_ids`    | List of individual video IDs.                                  |         |
+| `video_format` | Video format to download.                                      | `mp4`   |
 
 ## LLM
 
