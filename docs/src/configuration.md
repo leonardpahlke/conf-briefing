@@ -13,17 +13,16 @@ events/kubecon-eu-2026/       → data directory (gitignored)
 [conference]
 name = "KubeCon EU 2026"
 schedule_url = "https://kccnceu2026.sched.com"
-# sched_api_key = "${SCHED_API_KEY}"
 
 [conference.recordings]
 source_url = "https://www.youtube.com/playlist?list=PLj6h78..."
 
 [llm]
-model = "claude-sonnet-4-20250514"
+model = "qwen3:14b"
+ollama_base_url = "http://localhost:11434"
 
 [query]
 embedding_model = "nomic-embed-text"
-ollama_base_url = "http://localhost:11434"
 top_k = 15
 ```
 
@@ -32,34 +31,33 @@ top_k = 15
 | Field          | Description                                                       |
 |----------------|-------------------------------------------------------------------|
 | `name`         | Display name used in report headers.                              |
-| `schedule`     | Path to schedule data file (titles, abstracts, speakers, tracks). |
+| `schedule`     | Path to local schedule data file (JSON/TOML).                     |
 | `schedule_url` | URL to a schedule provider (e.g. sched.com). Auto-detected.      |
-| `sched_api_key`| API key for Sched (if fetching programmatically).                 |
+| `sched_api_key`| API key for Sched (optional, falls back to scraping).             |
 
 ### Recordings
 
-| Field          | Description                                                   | Default |
-|----------------|---------------------------------------------------------------|---------|
-| `source_url`   | Playlist/channel URL for talk recordings (provider auto-detected from domain). |         |
+| Field          | Description                                                    | Default |
+|----------------|----------------------------------------------------------------|---------|
+| `source_url`   | Playlist/channel URL for talk recordings (YouTube).            |         |
 | `video_ids`    | List of individual video IDs.                                  |         |
 | `video_format` | Video format to download.                                      | `mp4`   |
 
 ## LLM
 
-| Field   | Description                       | Default                    |
-|---------|-----------------------------------|----------------------------|
-| `model` | Claude model to use for analysis. | `claude-sonnet-4-20250514` |
+Analysis uses [Ollama](https://ollama.com/) running locally.
 
-The Anthropic API key is read from the `ANTHROPIC_API_KEY` environment variable.
+| Field             | Description                        | Default                  |
+|-------------------|------------------------------------|--------------------------|
+| `model`           | Ollama model for analysis.         | `qwen3:14b`              |
+| `ollama_base_url` | Base URL of the Ollama server.     | `http://localhost:11434` |
 
-## RAG Query
+## Query
 
-Settings for the vector-based retrieval system. Requires [Ollama](https://ollama.com/) running locally.
+Vector-based retrieval for RAG queries. Also uses Ollama for embeddings.
 
-| Field             | Description                                          | Default                    |
-|-------------------|------------------------------------------------------|----------------------------|
-| `embedding_model` | Ollama model used for embeddings.                    | `nomic-embed-text`         |
-| `ollama_base_url` | Base URL of the Ollama server.                       | `http://localhost:11434`   |
-| `top_k`           | Default number of chunks to retrieve per query.      | `15`                       |
-
-The ChromaDB vector store is located at `{data_dir}/chroma/` (derived automatically from the config path).
+| Field             | Description                                     | Default                  |
+|-------------------|-------------------------------------------------|--------------------------|
+| `embedding_model` | Ollama model for embeddings.                    | `nomic-embed-text`       |
+| `ollama_base_url` | Base URL of the Ollama server.                  | `http://localhost:11434` |
+| `top_k`           | Default number of chunks to retrieve per query. | `15`                     |

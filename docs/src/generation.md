@@ -51,10 +51,11 @@ After the conference, when recordings are published, the tool downloads transcri
 
 ## RAG Query
 
-**Prerequisites:** [Ollama](https://ollama.com/) running locally with the `nomic-embed-text` model.
+**Prerequisites:** [Ollama](https://ollama.com/) running locally.
 
 ```sh
 ollama pull nomic-embed-text
+ollama pull qwen3:14b
 ollama serve
 ```
 
@@ -89,7 +90,7 @@ Query the indexed data with natural language:
 conf-briefing -c events/kubecon-eu-2026.toml ask "What are the main themes of the conference?"
 ```
 
-The tool retrieves the most relevant chunks, sends them as context to Claude, and returns an answer with source references.
+The tool retrieves the most relevant chunks, sends them as context to the LLM, and returns an answer with source references.
 
 **Options:**
 
