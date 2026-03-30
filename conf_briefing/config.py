@@ -40,7 +40,7 @@ class Config:
     conference: ConferenceConfig = field(default_factory=ConferenceConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
     query: QueryConfig = field(default_factory=QueryConfig)
-    data_dir: str = "data"
+    data_dir: Path = Path("data")
 
 
 def load_config(path: str | Path) -> Config:
@@ -57,8 +57,8 @@ def load_config(path: str | Path) -> Config:
         raw = tomllib.load(f)
 
     # Derive data_dir from config file path (strip .toml suffix)
-    data_dir = str(path.with_suffix(""))
-    Path(data_dir).mkdir(parents=True, exist_ok=True)
+    data_dir = path.with_suffix("")
+    data_dir.mkdir(parents=True, exist_ok=True)
 
     recordings_raw = raw.get("conference", {}).get("recordings", {})
     recordings = RecordingsConfig(

@@ -23,10 +23,15 @@
             just
             mdbook
             ollama
+            chromium
+          ];
+
+          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+            pkgs.stdenv.cc.cc.lib
           ];
 
           shellHook = ''
-            uv sync --quiet
+            uv sync --extra scrape --quiet
 
             echo "--- Conf-Briefing Dev Shell ---"
             echo ""

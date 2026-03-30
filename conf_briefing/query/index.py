@@ -23,7 +23,7 @@ def _get_client(config: Config):
     """Create ChromaDB persistent client."""
     import chromadb
 
-    return chromadb.PersistentClient(path=f"{config.data_dir}/chroma")
+    return chromadb.PersistentClient(path=str(config.data_dir / "chroma"))
 
 
 def build_index(config: Config, chunks: list[Chunk]) -> int:
@@ -97,13 +97,13 @@ def query_index(
     metas = results.get("metadatas", [[]])[0]
     dists = results.get("distances", [[]])[0]
 
-    for i in range(len(ids)):
+    for id_, doc, meta, dist in zip(ids, docs, metas, dists, strict=False):
         hits.append(
             {
-                "id": ids[i],
-                "text": docs[i],
-                "metadata": metas[i],
-                "distance": dists[i],
+                "id": id_,
+                "text": doc,
+                "metadata": meta,
+                "distance": dist,
             }
         )
 

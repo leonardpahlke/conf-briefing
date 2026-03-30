@@ -31,7 +31,13 @@ def query_llm_json(config: Config, system: str, prompt: str, max_tokens: int = 4
     text = response.strip()
     if text.startswith("```"):
         lines = text.split("\n")
-        # Remove first and last lines (``` markers)
-        lines = [line for line in lines[1:] if not line.strip().startswith("```")]
+        lines = lines[1:]  # skip opening fence
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]  # remove closing fence
         text = "\n".join(lines)
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"LLM returned invalid JSON: {e}\nResponse (first 500 chars): {text[:500]}"
+        ) from e

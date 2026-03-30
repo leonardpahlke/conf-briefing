@@ -2,6 +2,7 @@
 
 This module is intentionally decoupled from the rest of the project.
 It only depends on requests + beautifulsoup4 and returns plain dicts.
+When Cloudflare blocks requests, it falls back to Playwright (optional).
 
 Usage:
     from conf_briefing.collect.sched_scraper import scrape_schedule
@@ -9,7 +10,10 @@ Usage:
 """
 
 import json
+import os
 import re
+import shutil
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -35,6 +39,66 @@ BACKOFF_SCHEDULE = [2, 4, 8, 10, 10, 10]  # seconds
 REQUEST_SPACING = 0.4  # seconds
 
 
+def _get_session(base_url: str) -> requests.Session:
+    """Create a requests session, using Playwright to solve CF challenges if needed.
+
+    Tries a plain request first. If Cloudflare blocks it (403 with
+    cf-mitigated header), uses Playwright to solve the JS challenge
+    and extracts the clearance cookies for subsequent requests.
+    """
+    session = requests.Session()
+    session.headers.update(HEADERS)
+
+    resp = session.get(base_url, timeout=30)
+    if resp.status_code != 403:
+        return session
+
+    # Check if this is a Cloudflare challenge
+    if "cf-mitigated" not in resp.headers:
+        resp.raise_for_status()
+
+    print("[sched] Cloudflare JS challenge detected, launching browser...")
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError as e:
+        raise RuntimeError(
+            "sched.com is behind Cloudflare protection and requires a browser.\n"
+            "Install Playwright:  uv sync --extra scrape && playwright install chromium\n"
+            "Or provide a local schedule file via [conference] schedule = 'path/to/file.json'"
+        ) from e
+
+    # Prefer system chromium (e.g. from Nix) over Playwright's bundled one
+    chrome_path = os.environ.get("PLAYWRIGHT_CHROMIUM_PATH") or shutil.which("chromium")
+    launch_args = {"headless": True}
+    if chrome_path:
+        launch_args["executable_path"] = chrome_path
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(**launch_args)
+        context = browser.new_context()
+        page = context.new_page()
+        page.goto(base_url, wait_until="networkidle")
+        # Wait for CF challenge to resolve (page will redirect)
+        page.wait_for_load_state("networkidle")
+        cookies = context.cookies()
+        browser.close()
+
+    for cookie in cookies:
+        session.cookies.set(cookie["name"], cookie["value"], domain=cookie["domain"])
+
+    # Verify cookies work
+    resp = session.get(base_url, timeout=30)
+    if resp.status_code == 403:
+        raise RuntimeError(
+            "Could not bypass Cloudflare protection even with browser.\n"
+            "Try running: playwright install chromium\n"
+            "Or provide a local schedule file via [conference] schedule = 'path/to/file.json'"
+        )
+
+    print("[sched] Cloudflare challenge solved, cookies acquired")
+    return session
+
+
 def scrape_schedule(
     sched_url: str,
     *,
@@ -57,10 +121,13 @@ def scrape_schedule(
         title, abstract, speakers, track, format, time, tags, venue, sched_url
     """
     base = sched_url.rstrip("/")
-    sessions = _scrape_listing(base)
+    http_session = _get_session(base)
+    sessions = _scrape_listing(base, http_session)
 
     if fetch_details and sessions:
-        sessions = _fetch_all_details(sessions, cache_dir=cache_dir, max_workers=max_workers)
+        sessions = _fetch_all_details(
+            sessions, http_session=http_session, cache_dir=cache_dir, max_workers=max_workers
+        )
 
     return sessions
 
@@ -74,10 +141,10 @@ def _sched_id_from_url(url: str) -> str:
     return match.group(1) if match else ""
 
 
-def _fetch_with_retry(url: str) -> requests.Response:
+def _fetch_with_retry(url: str, session: requests.Session) -> requests.Response:
     """Fetch a URL with exponential backoff on 429 and transient errors."""
     for attempt in range(MAX_RETRIES):
-        resp = requests.get(url, headers=HEADERS, timeout=30)
+        resp = session.get(url, timeout=30)
         if resp.status_code != 429:
             resp.raise_for_status()
             return resp
@@ -86,7 +153,7 @@ def _fetch_with_retry(url: str) -> requests.Response:
         time.sleep(delay)
 
     # Final attempt — let it raise
-    resp = requests.get(url, headers=HEADERS, timeout=30)
+    resp = session.get(url, timeout=30)
     resp.raise_for_status()
     return resp
 
@@ -94,6 +161,7 @@ def _fetch_with_retry(url: str) -> requests.Response:
 def _fetch_all_details(
     sessions: list[dict],
     *,
+    http_session: requests.Session,
     cache_dir: str | Path | None = None,
     max_workers: int = MAX_WORKERS,
 ) -> list[dict]:
@@ -107,8 +175,8 @@ def _fetch_all_details(
     cached_count = 0
 
     # Check cache and separate cached vs. to-fetch
-    for idx, session in enumerate(sessions):
-        detail_url = session.get("_detail_url", "")
+    for idx, sess in enumerate(sessions):
+        detail_url = sess.get("_detail_url", "")
         if not detail_url:
             continue
 
@@ -117,12 +185,12 @@ def _fetch_all_details(
             cache_file = cache_dir / f"{sched_id}.json"
             if cache_file.exists():
                 cached = json.loads(cache_file.read_text())
-                session.update(cached)
-                session.pop("_detail_url", None)
+                sess.update(cached)
+                sess.pop("_detail_url", None)
                 cached_count += 1
                 continue
 
-        to_fetch.append((idx, session))
+        to_fetch.append((idx, sess))
 
     if cached_count:
         print(f"[sched] {cached_count}/{total} sessions cached, {len(to_fetch)} to fetch")
@@ -135,12 +203,25 @@ def _fetch_all_details(
 
     done_count = 0
 
-    def _fetch_one(idx_session: tuple[int, dict]) -> tuple[int, dict | None, str]:
-        idx, session = idx_session
-        detail_url = session.get("_detail_url", "")
+    # Thread-local sessions (requests.Session is not thread-safe)
+    _local = threading.local()
+    shared_headers = dict(http_session.headers)
+    shared_cookies = dict(http_session.cookies)
+
+    def _get_thread_session() -> requests.Session:
+        if not hasattr(_local, "session"):
+            s = requests.Session()
+            s.headers.update(shared_headers)
+            s.cookies.update(shared_cookies)
+            _local.session = s
+        return _local.session
+
+    def _fetch_one(idx_sess: tuple[int, dict]) -> tuple[int, dict | None, str]:
+        idx, sess = idx_sess
+        detail_url = sess.get("_detail_url", "")
         try:
-            detail = _scrape_detail(detail_url)
-            return idx, detail, session["title"]
+            detail = _scrape_detail(detail_url, _get_thread_session())
+            return idx, detail, sess["title"]
         except Exception as e:
             return idx, None, f"failed: {e}"
 
@@ -176,9 +257,9 @@ def _fetch_all_details(
     return sessions
 
 
-def _scrape_listing(base_url: str) -> list[dict]:
+def _scrape_listing(base_url: str, session: requests.Session) -> list[dict]:
     """Scrape the main schedule listing page for session links and titles."""
-    resp = requests.get(base_url, headers=HEADERS, timeout=30)
+    resp = session.get(base_url, timeout=30)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -224,9 +305,9 @@ def _scrape_listing(base_url: str) -> list[dict]:
     return sessions
 
 
-def _scrape_detail(url: str) -> dict:
+def _scrape_detail(url: str, session: requests.Session) -> dict:
     """Scrape a single session detail page for abstract, speakers, track, time."""
-    resp = _fetch_with_retry(url)
+    resp = _fetch_with_retry(url, session)
     soup = BeautifulSoup(resp.text, "html.parser")
 
     result: dict = {}

@@ -116,7 +116,7 @@ def _fetch_transcripts_local(config: Config, video_ids: list[str], out_dir: Path
     from conf_briefing.collect.video_dl import download_audio_batch
     from conf_briefing.collect.whisper_transcribe import transcribe_batch
 
-    audio_dir = Path(config.data_dir) / "audio"
+    audio_dir = config.data_dir / "audio"
     model_name = config.conference.recordings.whisper_model
 
     # Skip videos that already have transcripts
@@ -171,7 +171,7 @@ def fetch_transcripts(config: Config) -> Path:
       - "api": YouTube subtitle API (default, fast, may fail on some videos)
       - "local": Download audio with yt-dlp + transcribe with Whisper
     """
-    out_dir = Path(config.data_dir) / "transcripts"
+    out_dir = config.data_dir / "transcripts"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     video_ids = _collect_video_ids(config)
@@ -189,7 +189,7 @@ def fetch_transcripts(config: Config) -> Path:
         raise ValueError(f"Unknown recordings strategy: {strategy!r} (expected 'api' or 'local')")
 
     # Write index of all fetched transcripts
-    index_path = Path(config.data_dir) / "transcripts.json"
-    index_path.write_text(json.dumps(results, indent=2))
+    index_path = config.data_dir / "transcripts.json"
+    index_path.write_text(json.dumps(results, indent=2, ensure_ascii=False))
     print(f"[collect] Saved {len(results)} transcripts to {out_dir}")
     return out_dir

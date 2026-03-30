@@ -17,8 +17,8 @@ def _load_json(path: Path) -> dict | list | None:
 
 def render_reports(config: Config) -> list[Path]:
     """Render all report templates with analysis data."""
-    data_dir = Path(config.data_dir)
-    templates_dir = Path("templates")
+    data_dir = config.data_dir
+    templates_dir = Path(__file__).resolve().parent.parent.parent / "templates"
     output_dir = data_dir / "reports"
     output_dir.mkdir(parents=True, exist_ok=True)
 

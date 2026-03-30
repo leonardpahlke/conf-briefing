@@ -40,7 +40,7 @@ Recommend the top 3-5 talks per cluster."""
 
 def rank_clusters(config: Config) -> Path:
     """Rank agenda clusters by relevance."""
-    data_dir = Path(config.data_dir)
+    data_dir = config.data_dir
     agenda_path = data_dir / "analysis_agenda.json"
     out_path = data_dir / "analysis_ranking.json"
 

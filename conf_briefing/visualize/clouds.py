@@ -8,7 +8,7 @@ from conf_briefing.config import Config
 
 def generate_wordcloud(config: Config) -> Path | None:
     """Generate a keyword word cloud from agenda analysis."""
-    data_dir = Path(config.data_dir)
+    data_dir = config.data_dir
     agenda_path = data_dir / "analysis_agenda.json"
 
     if not agenda_path.exists():
@@ -32,7 +32,7 @@ def generate_wordcloud(config: Config) -> Path | None:
 
     from wordcloud import WordCloud
 
-    images_dir = Path(config.data_dir) / "reports" / "images"
+    images_dir = config.data_dir / "reports" / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
 
     wc = WordCloud(

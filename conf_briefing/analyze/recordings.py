@@ -97,7 +97,7 @@ def synthesize_analyses(config: Config, analyses: list[dict]) -> dict:
 
 def analyze_recordings(config: Config) -> Path:
     """Analyze all recording transcripts."""
-    data_dir = Path(config.data_dir)
+    data_dir = config.data_dir
     matched_path = data_dir / "matched.json"
     out_path = data_dir / "analysis_recordings.json"
 

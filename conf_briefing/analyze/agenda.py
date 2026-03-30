@@ -43,7 +43,7 @@ Count company mentions across speakers. Summarize track distribution."""
 
 def analyze_agenda(config: Config) -> Path:
     """Analyze the conference agenda using LLM."""
-    data_dir = Path(config.data_dir)
+    data_dir = config.data_dir
     schedule_path = data_dir / "schedule_clean.json"
     out_path = data_dir / "analysis_agenda.json"
 

@@ -38,7 +38,7 @@ def normalize_session(session: dict) -> dict:
 
 def normalize_schedule(config: Config) -> Path:
     """Normalize the collected schedule data."""
-    data_dir = Path(config.data_dir)
+    data_dir = config.data_dir
     schedule_path = data_dir / "schedule.json"
 
     if not schedule_path.exists():
@@ -70,7 +70,7 @@ def similarity(a: str, b: str) -> float:
 
 def match_transcripts(config: Config) -> Path:
     """Match transcripts to schedule entries by title similarity."""
-    data_dir = Path(config.data_dir)
+    data_dir = config.data_dir
     schedule_path = data_dir / "schedule_clean.json"
     transcripts_dir = data_dir / "transcripts"
     out_path = data_dir / "matched.json"

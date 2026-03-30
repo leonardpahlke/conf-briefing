@@ -27,6 +27,7 @@ local = [
     "yt-dlp>=2024.0",
     "openai-whisper>=20240930",
 ]
+scrape = ["playwright>=1.40"]
 dev = ["ruff>=0.9"]
 
 [build-system]

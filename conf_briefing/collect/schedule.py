@@ -98,7 +98,7 @@ def fetch_schedule(config: Config) -> Path:
     2. schedule_url alone → auto-detect provider and scrape public page
     3. schedule file path → load from local JSON/TOML
     """
-    data_dir = Path(config.data_dir)
+    data_dir = config.data_dir
     data_dir.mkdir(parents=True, exist_ok=True)
     out_path = data_dir / "schedule.json"
 

@@ -1,9 +1,11 @@
 docs/book/
 data/
 events/*/
+conf_briefing.toml
 __pycache__/
 *.pyc
 .venv/
 *.egg-info/
 dist/
 .ruff_cache/
+.direnv/

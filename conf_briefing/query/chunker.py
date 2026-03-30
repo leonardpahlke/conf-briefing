@@ -2,7 +2,6 @@
 
 import json
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from conf_briefing.config import Config
 
@@ -105,7 +104,7 @@ def _chunk_transcript_segments(segments: list[dict], video_id: str, session: dic
 
 def _load_transcript_chunks(config: Config, sessions: list[dict]) -> list[Chunk]:
     """Load transcript segments and chunk them."""
-    data_dir = Path(config.data_dir)
+    data_dir = config.data_dir
     transcripts_dir = data_dir / "transcripts"
     chunks = []
 
@@ -304,7 +303,7 @@ def _load_narrative_chunks(agenda: dict, recordings: dict) -> list[Chunk]:
 
 def load_chunks(config: Config) -> list[Chunk]:
     """Load all data sources and produce chunks for indexing."""
-    data_dir = Path(config.data_dir)
+    data_dir = config.data_dir
     chunks: list[Chunk] = []
 
     # Load sessions (matched or clean schedule)

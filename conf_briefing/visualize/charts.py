@@ -9,7 +9,7 @@ from conf_briefing.config import Config
 
 
 def _ensure_images_dir(config: Config) -> Path:
-    images_dir = Path(config.data_dir) / "reports" / "images"
+    images_dir = config.data_dir / "reports" / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
     return images_dir
 
@@ -120,7 +120,7 @@ def chart_cluster_relevance(ranking: list[dict], images_dir: Path) -> Path | Non
 
 def generate_charts(config: Config) -> list[Path]:
     """Generate all charts from analysis data."""
-    data_dir = Path(config.data_dir)
+    data_dir = config.data_dir
     images_dir = _ensure_images_dir(config)
     generated = []
 
