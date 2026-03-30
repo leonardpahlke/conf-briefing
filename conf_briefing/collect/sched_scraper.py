@@ -10,6 +10,7 @@ Usage:
 
 import json
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -24,7 +25,14 @@ HEADERS = {
 }
 
 # Max concurrent detail page requests
-MAX_WORKERS = 10
+MAX_WORKERS = 3
+
+# Retry config for 429 / transient errors
+MAX_RETRIES = 6
+BACKOFF_SCHEDULE = [2, 4, 8, 10, 10, 10]  # seconds
+
+# Minimum delay between starting new requests (across all workers)
+REQUEST_SPACING = 0.4  # seconds
 
 
 def scrape_schedule(
@@ -64,6 +72,23 @@ def _sched_id_from_url(url: str) -> str:
     """
     match = re.search(r"/event/([^/]+)", url)
     return match.group(1) if match else ""
+
+
+def _fetch_with_retry(url: str) -> requests.Response:
+    """Fetch a URL with exponential backoff on 429 and transient errors."""
+    for attempt in range(MAX_RETRIES):
+        resp = requests.get(url, headers=HEADERS, timeout=30)
+        if resp.status_code != 429:
+            resp.raise_for_status()
+            return resp
+
+        delay = BACKOFF_SCHEDULE[min(attempt, len(BACKOFF_SCHEDULE) - 1)]
+        time.sleep(delay)
+
+    # Final attempt — let it raise
+    resp = requests.get(url, headers=HEADERS, timeout=30)
+    resp.raise_for_status()
+    return resp
 
 
 def _fetch_all_details(
@@ -120,15 +145,21 @@ def _fetch_all_details(
             return idx, None, f"failed: {e}"
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = {pool.submit(_fetch_one, item): item for item in to_fetch}
+        # Submit work gradually with spacing to avoid rate limits
+        futures = {}
+        for item in to_fetch:
+            futures[pool.submit(_fetch_one, item)] = item
+            time.sleep(REQUEST_SPACING)
+
         for future in as_completed(futures):
             idx, detail, title_or_err = future.result()
             done_count += 1
+            progress = cached_count + done_count
 
             if detail is not None:
                 sessions[idx].update(detail)
                 sessions[idx].pop("_detail_url", None)
-                print(f"[sched]   ({cached_count + done_count}/{total}) {title_or_err[:60]}")
+                print(f"[sched]   ({progress}/{total}) {title_or_err[:60]}")
 
                 # Cache to disk
                 if cache_dir:
@@ -140,7 +171,7 @@ def _fetch_all_details(
                             json.dumps(sessions[idx], indent=2, ensure_ascii=False)
                         )
             else:
-                print(f"[sched]   ({cached_count + done_count}/{total}) {title_or_err}")
+                print(f"[sched]   ({progress}/{total}) {title_or_err}")
 
     return sessions
 
@@ -195,8 +226,7 @@ def _scrape_listing(base_url: str) -> list[dict]:
 
 def _scrape_detail(url: str) -> dict:
     """Scrape a single session detail page for abstract, speakers, track, time."""
-    resp = requests.get(url, headers=HEADERS, timeout=30)
-    resp.raise_for_status()
+    resp = _fetch_with_retry(url)
     soup = BeautifulSoup(resp.text, "html.parser")
 
     result: dict = {}
