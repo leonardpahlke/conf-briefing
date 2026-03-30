@@ -29,7 +29,7 @@ def _resolve_provider(url: str) -> tuple[str, str] | None:
     return None
 
 
-def _scrape_from_provider(url: str) -> list[dict]:
+def _scrape_from_provider(url: str, cache_dir: Path | None = None) -> list[dict]:
     """Dispatch to the right scraper based on URL domain."""
     match = _resolve_provider(url)
     if match is None:
@@ -43,7 +43,7 @@ def _scrape_from_provider(url: str) -> list[dict]:
     provider_name, module_path = match
     mod = importlib.import_module(module_path)
     print(f"[collect] Using {provider_name} provider for schedule")
-    return mod.scrape_schedule(url)
+    return mod.scrape_schedule(url, cache_dir=cache_dir)
 
 
 def fetch_from_sched_api(url: str, api_key: str) -> list[dict]:
@@ -108,7 +108,8 @@ def fetch_schedule(config: Config) -> Path:
             config.conference.schedule_url, config.conference.sched_api_key
         )
     elif config.conference.schedule_url:
-        raw_sessions = _scrape_from_provider(config.conference.schedule_url)
+        talks_dir = data_dir / "talks"
+        raw_sessions = _scrape_from_provider(config.conference.schedule_url, cache_dir=talks_dir)
     elif config.conference.schedule:
         print(f"[collect] Loading schedule from file: {config.conference.schedule}")
         raw_sessions = load_from_file(config.conference.schedule)

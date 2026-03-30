@@ -5,11 +5,13 @@ It only depends on requests + beautifulsoup4 and returns plain dicts.
 
 Usage:
     from conf_briefing.collect.sched_scraper import scrape_schedule
-    sessions = scrape_schedule("https://kccnceu2025.sched.com")
+    sessions = scrape_schedule("https://kccnceu2025.sched.com", cache_dir="talks/")
 """
 
+import json
 import re
-import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
@@ -21,15 +23,16 @@ HEADERS = {
     ),
 }
 
-# Delay between detail page requests (seconds)
-REQUEST_DELAY = 1.0
+# Max concurrent detail page requests
+MAX_WORKERS = 10
 
 
 def scrape_schedule(
     sched_url: str,
     *,
     fetch_details: bool = True,
-    delay: float = REQUEST_DELAY,
+    cache_dir: str | Path | None = None,
+    max_workers: int = MAX_WORKERS,
 ) -> list[dict]:
     """Scrape all sessions from a public sched.com event page.
 
@@ -37,7 +40,9 @@ def scrape_schedule(
         sched_url: Base URL like "https://kccnceu2025.sched.com"
         fetch_details: If True, fetch each session's detail page for
                        abstracts, speakers, and track info.
-        delay: Seconds to wait between detail page requests.
+        cache_dir: If set, cache each session detail as JSON in this dir.
+                   Cached sessions are skipped on subsequent runs.
+        max_workers: Number of concurrent requests for detail pages.
 
     Returns:
         List of session dicts with keys:
@@ -47,20 +52,95 @@ def scrape_schedule(
     sessions = _scrape_listing(base)
 
     if fetch_details and sessions:
-        total = len(sessions)
-        print(f"[sched] Fetching details for {total} sessions...")
-        for i, session in enumerate(sessions, 1):
-            detail_url = session.pop("_detail_url", "")
-            if not detail_url:
+        sessions = _fetch_all_details(sessions, cache_dir=cache_dir, max_workers=max_workers)
+
+    return sessions
+
+
+def _sched_id_from_url(url: str) -> str:
+    """Extract the sched event ID from a detail URL.
+
+    e.g. ".../event/1tfF2/some-slug" → "1tfF2"
+    """
+    match = re.search(r"/event/([^/]+)", url)
+    return match.group(1) if match else ""
+
+
+def _fetch_all_details(
+    sessions: list[dict],
+    *,
+    cache_dir: str | Path | None = None,
+    max_workers: int = MAX_WORKERS,
+) -> list[dict]:
+    """Fetch detail pages for all sessions, with caching and concurrency."""
+    if cache_dir is not None:
+        cache_dir = Path(cache_dir)
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+    total = len(sessions)
+    to_fetch: list[tuple[int, dict]] = []
+    cached_count = 0
+
+    # Check cache and separate cached vs. to-fetch
+    for idx, session in enumerate(sessions):
+        detail_url = session.get("_detail_url", "")
+        if not detail_url:
+            continue
+
+        sched_id = _sched_id_from_url(detail_url)
+        if cache_dir and sched_id:
+            cache_file = cache_dir / f"{sched_id}.json"
+            if cache_file.exists():
+                cached = json.loads(cache_file.read_text())
+                session.update(cached)
+                session.pop("_detail_url", None)
+                cached_count += 1
                 continue
-            try:
-                detail = _scrape_detail(detail_url)
-                session.update(detail)
-                print(f"[sched]   ({i}/{total}) {session['title'][:60]}")
-            except Exception as e:
-                print(f"[sched]   ({i}/{total}) failed: {e}")
-            if i < total:
-                time.sleep(delay)
+
+        to_fetch.append((idx, session))
+
+    if cached_count:
+        print(f"[sched] {cached_count}/{total} sessions cached, {len(to_fetch)} to fetch")
+
+    if not to_fetch:
+        print(f"[sched] All {total} sessions cached.")
+        return sessions
+
+    print(f"[sched] Fetching details for {len(to_fetch)} sessions ({max_workers} concurrent)...")
+
+    done_count = 0
+
+    def _fetch_one(idx_session: tuple[int, dict]) -> tuple[int, dict | None, str]:
+        idx, session = idx_session
+        detail_url = session.get("_detail_url", "")
+        try:
+            detail = _scrape_detail(detail_url)
+            return idx, detail, session["title"]
+        except Exception as e:
+            return idx, None, f"failed: {e}"
+
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {pool.submit(_fetch_one, item): item for item in to_fetch}
+        for future in as_completed(futures):
+            idx, detail, title_or_err = future.result()
+            done_count += 1
+
+            if detail is not None:
+                sessions[idx].update(detail)
+                sessions[idx].pop("_detail_url", None)
+                print(f"[sched]   ({cached_count + done_count}/{total}) {title_or_err[:60]}")
+
+                # Cache to disk
+                if cache_dir:
+                    detail_url = sessions[idx].get("sched_url", "")
+                    sched_id = _sched_id_from_url(detail_url)
+                    if sched_id:
+                        cache_file = cache_dir / f"{sched_id}.json"
+                        cache_file.write_text(
+                            json.dumps(sessions[idx], indent=2, ensure_ascii=False)
+                        )
+            else:
+                print(f"[sched]   ({cached_count + done_count}/{total}) {title_or_err}")
 
     return sessions
 
