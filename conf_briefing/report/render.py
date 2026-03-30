@@ -28,7 +28,7 @@ def render_reports(config: Config) -> list[Path]:
 
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(str(templates_dir)),
-        undefined=jinja2.StrictUndefined,
+        undefined=jinja2.Undefined,
         keep_trailing_newline=True,
     )
 
@@ -75,18 +75,19 @@ def _update_summary(docs_src: Path, reports: list[Path]) -> None:
         return
 
     content = summary_path.read_text()
-    report_section = "\n# Reports\n\n"
-    needs_update = False
-
+    new_links = ""
     for report in reports:
-        name = report.stem.replace("_", " ").title()
-        link = f"- [{name}](./{report.name})"
         if report.name not in content:
-            report_section += link + "\n"
-            needs_update = True
+            name = report.stem.replace("_", " ").title()
+            new_links += f"- [{name}](./{report.name})\n"
 
-    if needs_update:
-        if "# Reports" not in content:
-            content += report_section
-        summary_path.write_text(content)
-        print(f"[report] Updated {summary_path}")
+    if not new_links:
+        return
+
+    if "# Reports" not in content:
+        content += f"\n# Reports\n\n{new_links}"
+    else:
+        content = content.rstrip() + "\n" + new_links
+
+    summary_path.write_text(content)
+    print(f"[report] Updated {summary_path}")

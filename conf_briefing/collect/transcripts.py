@@ -33,9 +33,16 @@ def extract_video_ids_from_playlist(playlist_url: str) -> list[str]:
     return unique
 
 
+def _validate_video_id(vid: str) -> str:
+    """Validate a YouTube video ID."""
+    if not re.fullmatch(r"[a-zA-Z0-9_-]{1,20}", vid):
+        raise ValueError(f"Invalid video ID: {vid!r}")
+    return vid
+
+
 def _collect_video_ids(config: Config) -> list[str]:
     """Gather all video IDs from config (direct IDs + playlist)."""
-    video_ids = list(config.conference.recordings.video_ids)
+    video_ids = [_validate_video_id(v) for v in config.conference.recordings.video_ids]
 
     if config.conference.recordings.youtube_playlist:
         print("[collect] Extracting video IDs from playlist...")

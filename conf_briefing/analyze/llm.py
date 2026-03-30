@@ -21,10 +21,14 @@ def query_llm(config: Config, system: str, prompt: str, max_tokens: int = 4096) 
         system=system,
         messages=[{"role": "user", "content": prompt}],
     )
+    if not message.content:
+        raise ValueError(f"LLM returned empty response (stop_reason={message.stop_reason})")
     return message.content[0].text
 
 
-def query_llm_json(config: Config, system: str, prompt: str, max_tokens: int = 4096) -> dict:
+def query_llm_json(
+    config: Config, system: str, prompt: str, max_tokens: int = 4096
+) -> dict | list:
     """Send a prompt to the LLM and parse the JSON response."""
     response = query_llm(config, system, prompt, max_tokens)
     # Extract JSON from response (handle markdown code blocks)

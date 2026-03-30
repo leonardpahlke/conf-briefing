@@ -60,7 +60,25 @@ def load_config(path: str | Path) -> Config:
     data_dir = path.with_suffix("")
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    recordings_raw = raw.get("conference", {}).get("recordings", {})
+    # Warn about unknown top-level keys
+    known_sections = {"conference", "llm", "query"}
+    for key in raw:
+        if key not in known_sections:
+            print(f"[config] Warning: unknown config section [{key}] ignored")
+
+    conf_raw = raw.get("conference", {})
+    _warn_unknown(
+        conf_raw,
+        {"name", "schedule", "schedule_url", "sched_api_key", "recordings"},
+        "conference",
+    )
+
+    recordings_raw = conf_raw.get("recordings", {})
+    _warn_unknown(
+        recordings_raw,
+        {"youtube_playlist", "video_ids", "strategy", "whisper_model"},
+        "conference.recordings",
+    )
     recordings = RecordingsConfig(
         youtube_playlist=recordings_raw.get("youtube_playlist", ""),
         video_ids=recordings_raw.get("video_ids", []),
@@ -68,7 +86,6 @@ def load_config(path: str | Path) -> Config:
         whisper_model=recordings_raw.get("whisper_model", "base"),
     )
 
-    conf_raw = raw.get("conference", {})
     conference = ConferenceConfig(
         name=conf_raw.get("name", "Conference"),
         schedule=conf_raw.get("schedule", ""),
@@ -78,11 +95,13 @@ def load_config(path: str | Path) -> Config:
     )
 
     llm_raw = raw.get("llm", {})
+    _warn_unknown(llm_raw, {"model"}, "llm")
     llm = LLMConfig(
         model=llm_raw.get("model", "claude-sonnet-4-20250514"),
     )
 
     query_raw = raw.get("query", {})
+    _warn_unknown(query_raw, {"embedding_model", "ollama_base_url", "top_k"}, "query")
     query = QueryConfig(
         embedding_model=query_raw.get("embedding_model", "nomic-embed-text"),
         ollama_base_url=query_raw.get("ollama_base_url", "http://localhost:11434"),
@@ -95,3 +114,10 @@ def load_config(path: str | Path) -> Config:
         query=query,
         data_dir=data_dir,
     )
+
+
+def _warn_unknown(raw: dict, known: set[str], section: str) -> None:
+    """Warn about unknown keys in a config section."""
+    unknown = set(raw.keys()) - known
+    if unknown:
+        print(f"[config] Warning: unknown [{section}] keys ignored: {', '.join(sorted(unknown))}")

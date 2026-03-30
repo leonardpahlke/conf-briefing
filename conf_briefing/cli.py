@@ -152,7 +152,7 @@ def main():
 
     try:
         commands[args.command](args)
-    except FileNotFoundError as e:
+    except (FileNotFoundError, ValueError, RuntimeError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     except KeyboardInterrupt:

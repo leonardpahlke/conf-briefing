@@ -68,8 +68,8 @@ def load_from_file(path: str | Path) -> list[dict]:
     return json.loads(path.read_text())
 
 
-def normalize_session(raw: dict) -> dict:
-    """Normalize a raw session into a consistent schema."""
+def coerce_session(raw: dict) -> dict:
+    """Coerce a raw session from various provider formats into a consistent schema."""
     speakers = raw.get("speakers", [])
     if isinstance(speakers, str):
         speakers = [{"name": s.strip(), "company": ""} for s in speakers.split(",")]
@@ -117,7 +117,7 @@ def fetch_schedule(config: Config) -> Path:
         print("[collect] No schedule source configured, skipping.")
         return out_path
 
-    sessions = [normalize_session(s) for s in raw_sessions]
+    sessions = [coerce_session(s) for s in raw_sessions]
     out_path.write_text(json.dumps(sessions, indent=2, ensure_ascii=False))
     print(f"[collect] Saved {len(sessions)} sessions to {out_path}")
     return out_path

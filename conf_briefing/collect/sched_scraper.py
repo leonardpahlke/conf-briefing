@@ -142,15 +142,22 @@ def _sched_id_from_url(url: str) -> str:
 
 
 def _fetch_with_retry(url: str, session: requests.Session) -> requests.Response:
-    """Fetch a URL with exponential backoff on 429 and transient errors."""
+    """Fetch a URL with exponential backoff on 429, 5xx, and connection errors."""
     for attempt in range(MAX_RETRIES):
-        resp = session.get(url, timeout=30)
-        if resp.status_code != 429:
-            resp.raise_for_status()
-            return resp
+        try:
+            resp = session.get(url, timeout=30)
+        except (requests.ConnectionError, requests.Timeout):
+            delay = BACKOFF_SCHEDULE[min(attempt, len(BACKOFF_SCHEDULE) - 1)]
+            time.sleep(delay)
+            continue
 
-        delay = BACKOFF_SCHEDULE[min(attempt, len(BACKOFF_SCHEDULE) - 1)]
-        time.sleep(delay)
+        if resp.status_code == 429 or resp.status_code >= 500:
+            delay = BACKOFF_SCHEDULE[min(attempt, len(BACKOFF_SCHEDULE) - 1)]
+            time.sleep(delay)
+            continue
+
+        resp.raise_for_status()
+        return resp
 
     # Final attempt — let it raise
     resp = session.get(url, timeout=30)
