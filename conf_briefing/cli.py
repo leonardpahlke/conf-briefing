@@ -15,6 +15,18 @@ def cmd_collect(args):
     run_collect(config)
 
 
+def cmd_extract(args):
+    """Run the extract pipeline step (transcribe + slides + clean + analyze)."""
+    from conf_briefing.analyze import run_analyze
+    from conf_briefing.clean import run_clean
+    from conf_briefing.extract import run_extract
+
+    config = load_config(args.config)
+    run_extract(config)
+    run_clean(config)
+    run_analyze(config)
+
+
 def cmd_clean(args):
     """Run the clean pipeline step."""
     from conf_briefing.clean import run_clean
@@ -78,10 +90,12 @@ def cmd_run(args):
     from conf_briefing.analyze import run_analyze
     from conf_briefing.clean import run_clean
     from conf_briefing.collect import run_collect
+    from conf_briefing.extract import run_extract
     from conf_briefing.report import run_report
     from conf_briefing.visualize import run_visualize
 
     run_collect(config)
+    run_extract(config)
     run_clean(config)
     run_analyze(config)
     run_visualize(config)
@@ -103,6 +117,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("collect", help="Fetch schedule and transcripts")
+    subparsers.add_parser("extract", help="Extract AI data (transcribe, slides, clean, analyze)")
     subparsers.add_parser("clean", help="Normalize and structure data")
     subparsers.add_parser("analyze", help="Run LLM analysis")
     subparsers.add_parser("visualize", help="Generate charts and diagrams")
@@ -142,6 +157,7 @@ def main():
 
     commands = {
         "collect": cmd_collect,
+        "extract": cmd_extract,
         "clean": cmd_clean,
         "analyze": cmd_analyze,
         "visualize": cmd_visualize,

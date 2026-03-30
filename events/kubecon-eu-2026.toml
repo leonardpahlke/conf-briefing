@@ -6,6 +6,12 @@ schedule_url = "https://kccnceu2026.sched.com"
 [conference.recordings]
 source_url = "https://www.youtube.com/playlist?list=PLj6h78yzYM2MXCOWSN9CqqID6OOvF7wxL"
 
+[extract]
+whisper_model = "large-v3-turbo"
+device = "auto"
+compute_type = "auto"
+scene_threshold = 27.0
+
 [llm]
 model = "claude-sonnet-4-20250514"
 

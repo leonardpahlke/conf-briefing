@@ -24,6 +24,8 @@
             mdbook
             ollama
             chromium
+            ffmpeg      # needed by scenedetect/opencv for video I/O
+            tesseract   # OCR engine binary for pytesseract
           ];
 
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
@@ -31,20 +33,21 @@
           ];
 
           shellHook = ''
-            uv sync --extra scrape --quiet
+            uv sync --extra scrape --extra extract --quiet
 
             echo "--- Conf-Briefing Dev Shell ---"
             echo ""
-            echo "Getting started:"
-            echo "  1. Edit events/kubecon-eu-2026.toml              # configure event"
-            echo "  2. just run                                      # run the full pipeline"
+            echo "Pipeline (pass event name, e.g. kubecon-eu-2026):"
+            echo "  just collect <event>                  # scrape schedule + download videos"
+            echo "  just extract-check <event>            # verify extract dependencies"
+            echo "  just extract <event>                  # transcribe + slide OCR"
+            echo "  just report <event>                   # clean → analyze → visualize → report"
+            echo "  just query <event> \"question\"         # RAG Q&A (needs ollama)"
             echo ""
-            echo "For RAG queries:"
-            echo "  3. ollama pull nomic-embed-text                  # download embedding model"
-            echo "  4. just index                                    # build vector index"
-            echo "  5. just ask \"What are the main themes?\"          # query the data"
+            echo "Dev:"
+            echo "  just lint                             # ruff check + format"
+            echo "  just fix                              # auto-fix lint issues"
             echo ""
-            echo "Each event gets its own .toml config and data dir under events/."
             echo "Run 'just' to see all available commands."
           '';
         };

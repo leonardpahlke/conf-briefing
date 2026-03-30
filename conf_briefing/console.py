@@ -10,13 +10,16 @@ _TAG_COLORS = {
     "collect": "cyan",
     "sched": "cyan",
     "download": "cyan",
+    "extract": "bright_cyan",
     "whisper": "cyan",
+    "slides": "bright_magenta",
     "clean": "green",
     "analyze": "magenta",
     "visualize": "blue",
     "report": "yellow",
     "index": "bright_cyan",
     "ask": "bright_green",
+    "preflight": "bright_green",
     "config": "dim",
 }
 

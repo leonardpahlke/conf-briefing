@@ -30,6 +30,14 @@ class LLMConfig:
 
 
 @dataclass
+class ExtractConfig:
+    whisper_model: str = "large-v3-turbo"
+    device: str = "auto"  # "auto", "cuda", "cpu"
+    compute_type: str = "auto"  # "auto", "float16", "int8"
+    scene_threshold: float = 27.0  # PySceneDetect ContentDetector threshold
+
+
+@dataclass
 class QueryConfig:
     embedding_model: str = "nomic-embed-text"
     ollama_base_url: str = "http://localhost:11434"
@@ -39,6 +47,7 @@ class QueryConfig:
 @dataclass
 class Config:
     conference: ConferenceConfig = field(default_factory=ConferenceConfig)
+    extract: ExtractConfig = field(default_factory=ExtractConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
     query: QueryConfig = field(default_factory=QueryConfig)
     data_dir: Path = Path("data")
@@ -62,7 +71,7 @@ def load_config(path: str | Path) -> Config:
     data_dir.mkdir(parents=True, exist_ok=True)
 
     # Warn about unknown top-level keys
-    known_sections = {"conference", "llm", "query"}
+    known_sections = {"conference", "extract", "llm", "query"}
     for key in raw:
         if key not in known_sections:
             console.print(
@@ -97,6 +106,19 @@ def load_config(path: str | Path) -> Config:
         recordings=recordings,
     )
 
+    extract_raw = raw.get("extract", {})
+    _warn_unknown(
+        extract_raw,
+        {"whisper_model", "device", "compute_type", "scene_threshold"},
+        "extract",
+    )
+    extract = ExtractConfig(
+        whisper_model=extract_raw.get("whisper_model", "large-v3-turbo"),
+        device=extract_raw.get("device", "auto"),
+        compute_type=extract_raw.get("compute_type", "auto"),
+        scene_threshold=extract_raw.get("scene_threshold", 27.0),
+    )
+
     llm_raw = raw.get("llm", {})
     _warn_unknown(llm_raw, {"model"}, "llm")
     llm = LLMConfig(
@@ -113,6 +135,7 @@ def load_config(path: str | Path) -> Config:
 
     return Config(
         conference=conference,
+        extract=extract,
         llm=llm,
         query=query,
         data_dir=data_dir,

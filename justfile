@@ -6,13 +6,17 @@ default:
 
 # Sync Python dependencies (runs automatically in devshell)
 uv-sync:
-    uv sync
+    uv sync --extra scrape --extra extract
 
 # --- Pipeline ---
 
 # Collect schedule and recordings for an event
 collect event:
     uv run conf-briefing -c events/{{event}}.toml collect
+
+# Extract AI data from collected videos (transcribe, slides, analyze)
+extract event:
+    uv run conf-briefing -c events/{{event}}.toml extract
 
 # Generate reports from collected data
 report event:
@@ -25,6 +29,10 @@ report event:
 query event question:
     uv run conf-briefing -c events/{{event}}.toml index
     uv run conf-briefing -c events/{{event}}.toml ask "{{question}}"
+
+# Check if extract dependencies are available
+extract-check event:
+    uv run python -c "from conf_briefing.extract.preflight import check_extract_ready; from conf_briefing.config import load_config; check_extract_ready(load_config('events/{{event}}.toml'))"
 
 # --- Docs ---
 

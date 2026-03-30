@@ -24,6 +24,12 @@ dependencies = [
 conf-briefing = "conf_briefing.cli:main"
 
 [project.optional-dependencies]
+extract = [
+    "faster-whisper>=1.0",
+    "scenedetect[opencv]>=0.6",
+    "imagehash>=4.3",
+    "pytesseract>=0.3",
+]
 scrape = ["patchright>=1.40"]
 dev = ["ruff>=0.9"]
 
