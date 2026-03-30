@@ -23,6 +23,10 @@ dependencies = [
 conf-briefing = "conf_briefing.cli:main"
 
 [project.optional-dependencies]
+local = [
+    "yt-dlp>=2024.0",
+    "openai-whisper>=20240930",
+]
 dev = ["ruff>=0.9"]
 
 [build-system]

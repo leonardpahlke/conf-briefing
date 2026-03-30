@@ -10,6 +10,8 @@ from pathlib import Path
 class RecordingsConfig:
     youtube_playlist: str = ""
     video_ids: list[str] = field(default_factory=list)
+    strategy: str = "api"  # "api" (youtube subtitles) or "local" (yt-dlp + whisper)
+    whisper_model: str = "base"  # tiny, base, small, medium, large-v3
 
 
 @dataclass
@@ -62,6 +64,8 @@ def load_config(path: str | Path) -> Config:
     recordings = RecordingsConfig(
         youtube_playlist=recordings_raw.get("youtube_playlist", ""),
         video_ids=recordings_raw.get("video_ids", []),
+        strategy=recordings_raw.get("strategy", "api"),
+        whisper_model=recordings_raw.get("whisper_model", "base"),
     )
 
     conf_raw = raw.get("conference", {})

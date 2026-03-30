@@ -5,6 +5,8 @@ schedule_url = "https://kccnceu2026.sched.com"
 
 [conference.recordings]
 youtube_playlist = "https://www.youtube.com/playlist?list=PLj6h78yzYM2MXCOWSN9CqqID6OOvF7wxL"
+# strategy = "local"  # "api" (default, YouTube subtitles) or "local" (yt-dlp + whisper)
+# whisper_model = "base"  # tiny, base, small, medium, large-v3
 
 [llm]
 model = "claude-sonnet-4-20250514"

@@ -38,10 +38,20 @@ top_k = 15
 
 ### Recordings
 
-| Field              | Description                                     |
-|--------------------|-------------------------------------------------|
-| `youtube_playlist` | YouTube playlist URL for talk recordings.        |
-| `video_ids`        | List of individual YouTube video IDs.            |
+| Field              | Description                                              | Default  |
+|--------------------|----------------------------------------------------------|----------|
+| `youtube_playlist` | YouTube playlist URL for talk recordings.                 |          |
+| `video_ids`        | List of individual YouTube video IDs.                     |          |
+| `strategy`         | `"api"` (YouTube subtitles) or `"local"` (yt-dlp + Whisper). | `"api"`  |
+| `whisper_model`    | Whisper model size when using local strategy.             | `"base"` |
+
+**Local strategy** downloads audio via yt-dlp and transcribes with OpenAI Whisper. Works on any language, no API limits. Requires the `local` extra:
+
+```sh
+uv sync --extra local
+```
+
+Whisper models from smallest/fastest to largest/most accurate: `tiny`, `base`, `small`, `medium`, `large-v3`. Works on NVIDIA (CUDA), AMD (ROCm), and CPU.
 
 ## LLM
 
