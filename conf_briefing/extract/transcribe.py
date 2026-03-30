@@ -1,10 +1,12 @@
 """Video transcription using faster-whisper."""
 
 import json
+import logging
+import time
 from pathlib import Path
 
 from conf_briefing.config import Config
-from conf_briefing.console import console, progress_bar, tag
+from conf_briefing.console import console, tag
 
 
 def transcribe_video(
@@ -12,9 +14,14 @@ def transcribe_video(
     output_dir: Path,
     model,
     model_name: str,
+    initial_prompt: str = "",
 ) -> Path:
     """Transcribe a single video. Returns path to transcript JSON."""
-    segments_iter, info = model.transcribe(str(video_path), beam_size=5)
+    segments_iter, info = model.transcribe(
+        str(video_path),
+        beam_size=5,
+        initial_prompt=initial_prompt or None,
+    )
 
     segments = []
     full_parts = []
@@ -39,7 +46,12 @@ def transcribe_video(
     return out_path
 
 
-def transcribe_all(config: Config, device: str, compute_type: str) -> list[Path]:
+def transcribe_all(
+    config: Config,
+    device: str,
+    compute_type: str,
+    initial_prompt: str = "",
+) -> list[Path]:
     """Transcribe all downloaded videos. Returns list of transcript file paths."""
     data_dir = config.data_dir
     videos_dir = data_dir / "videos"
@@ -78,19 +90,26 @@ def transcribe_all(config: Config, device: str, compute_type: str) -> list[Path]
         f"with {model_name} on {device} ({compute_type})."
     )
 
-    # Load model once for all videos
+    # Suppress HuggingFace Hub token warning — model is already cached locally
+    logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+
     from faster_whisper import WhisperModel
 
-    model = WhisperModel(model_name, device=device, compute_type=compute_type)
+    with console.status(f"{tag('whisper')} Loading model {model_name}..."):
+        t0 = time.monotonic()
+        model = WhisperModel(model_name, device=device, compute_type=compute_type)
+        elapsed = time.monotonic() - t0
+    console.print(f"{tag('whisper')} Model loaded in {elapsed:.1f}s.")
 
     results = list(existing)
-    with progress_bar() as pb:
-        task = pb.add_task(f"{tag('whisper')} Transcribing", total=len(to_process))
-        for vf in to_process:
-            console.print(f"{tag('whisper')} Processing: {vf.name}")
-            out = transcribe_video(vf, output_dir, model, model_name)
-            results.append(out)
-            pb.advance(task)
+    total = len(to_process)
+    for i, vf in enumerate(to_process, 1):
+        with console.status(f"{tag('whisper')} [{i}/{total}] Transcribing {vf.name}..."):
+            t0 = time.monotonic()
+            out = transcribe_video(vf, output_dir, model, model_name, initial_prompt)
+            elapsed = time.monotonic() - t0
+        console.print(f"{tag('whisper')} [{i}/{total}] {vf.name} ({elapsed:.0f}s)")
+        results.append(out)
 
-    console.print(f"{tag('whisper')} Transcribed {len(to_process)} video(s).")
+    console.print(f"{tag('whisper')} Transcribed {total} video(s).")
     return results

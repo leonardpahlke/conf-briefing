@@ -301,6 +301,71 @@ def _load_narrative_chunks(agenda: dict, recordings: dict) -> list[Chunk]:
     return chunks
 
 
+def _load_slide_chunks(config: Config, sessions: list[dict]) -> list[Chunk]:
+    """Create searchable chunks from slide OCR + VLM descriptions."""
+    data_dir = config.data_dir
+    slides_dir = data_dir / "slides"
+    chunks = []
+
+    if not slides_dir.exists():
+        return chunks
+
+    for session in sessions:
+        video_id = session.get("video_id")
+        if not video_id:
+            continue
+
+        slides_file = slides_dir / f"{video_id}.json"
+        if not slides_file.exists():
+            continue
+
+        data = json.loads(slides_file.read_text())
+        slides = data.get("slides", [])
+        if not slides:
+            continue
+
+        meta = _base_metadata(session)
+        meta["video_id"] = video_id
+        meta["source_file"] = f"slides/{video_id}.json"
+
+        # Group slides into chunks of 3 for reasonable chunk sizes
+        for i in range(0, len(slides), 3):
+            group = slides[i : i + 3]
+            parts = []
+            timestamps = []
+            for slide in group:
+                text = slide.get("text", "").strip()
+                desc = slide.get("description", "").strip()
+                if text or desc:
+                    slide_parts = []
+                    if text:
+                        slide_parts.append(text)
+                    if desc:
+                        slide_parts.append(f"[Visual: {desc}]")
+                    parts.append("\n".join(slide_parts))
+                    timestamps.append(slide.get("timestamp_sec", 0.0))
+
+            if not parts:
+                continue
+
+            chunk_idx = i // 3
+            chunk_meta = {
+                **meta,
+                "chunk_index": chunk_idx,
+                "start_time": timestamps[0] if timestamps else 0.0,
+            }
+            chunks.append(
+                Chunk(
+                    id=f"slide_content:{video_id}:{chunk_idx}",
+                    text="\n\n".join(parts),
+                    chunk_type="slide_content",
+                    metadata=chunk_meta,
+                )
+            )
+
+    return chunks
+
+
 def load_chunks(config: Config) -> list[Chunk]:
     """Load all data sources and produce chunks for indexing."""
     data_dir = config.data_dir
@@ -316,6 +381,9 @@ def load_chunks(config: Config) -> list[Chunk]:
 
     # Transcript chunks
     chunks.extend(_load_transcript_chunks(config, sessions))
+
+    # Slide content chunks
+    chunks.extend(_load_slide_chunks(config, sessions))
 
     # Talk abstract chunks
     chunks.extend(_load_schedule_chunks(sessions))

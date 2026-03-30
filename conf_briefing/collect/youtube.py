@@ -49,9 +49,7 @@ def _download_single(video_id: str, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Check cache
-    existing = list(output_dir.glob(f"{video_id}.mp4")) or list(
-        output_dir.glob(f"{video_id}.mkv")
-    )
+    existing = list(output_dir.glob(f"{video_id}.mp4")) or list(output_dir.glob(f"{video_id}.mkv"))
     if existing:
         return existing[0]
 
@@ -67,9 +65,7 @@ def _download_single(video_id: str, output_dir: Path) -> Path:
     with yt_dlp.YoutubeDL(opts) as ydl:
         ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
 
-    results = list(output_dir.glob(f"{video_id}.mp4")) or list(
-        output_dir.glob(f"{video_id}.*")
-    )
+    results = list(output_dir.glob(f"{video_id}.mp4")) or list(output_dir.glob(f"{video_id}.*"))
     if not results:
         raise RuntimeError(f"Download succeeded but no video file found for {video_id}")
     return results[0]
@@ -91,14 +87,10 @@ def download_videos(
         task = pb.add_task(f"{tag('download')} Downloading videos", total=len(video_ids))
         for vid in video_ids:
             # Check cache
-            cached = list(output_dir.glob(f"{vid}.mp4")) or list(
-                output_dir.glob(f"{vid}.mkv")
-            )
+            cached = list(output_dir.glob(f"{vid}.mp4")) or list(output_dir.glob(f"{vid}.mkv"))
             if cached:
                 results.append((vid, cached[0]))
-                pb.update(
-                    task, advance=1, description=f"{tag('download')} {vid} [dim]cached[/dim]"
-                )
+                pb.update(task, advance=1, description=f"{tag('download')} {vid} [dim]cached[/dim]")
                 continue
 
             try:
@@ -107,9 +99,7 @@ def download_videos(
                 pb.update(task, advance=1, description=f"{tag('download')} {vid}")
             except Exception as e:
                 results.append((vid, None))
-                pb.update(
-                    task, advance=1, description=f"{tag('download')} {vid} [red]failed[/red]"
-                )
+                pb.update(task, advance=1, description=f"{tag('download')} {vid} [red]failed[/red]")
                 console.print(f"  {tag('download')} [red]{vid} — {e}[/red]")
 
     return results

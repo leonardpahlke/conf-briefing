@@ -127,18 +127,47 @@ def match_transcripts(config: Config) -> Path:
             matched_count += 1
         else:
             # Unmatched transcript — add as standalone entry
-            sessions.append({
-                "title": title or f"Recording {vid}",
-                "abstract": "",
-                "speakers": [],
-                "track": "",
-                "format": "recording",
-                "time": "",
-                "tags": [],
-                "transcript": transcript.get("full_text", ""),
-                "video_id": vid,
-            })
+            sessions.append(
+                {
+                    "title": title or f"Recording {vid}",
+                    "abstract": "",
+                    "speakers": [],
+                    "track": "",
+                    "format": "recording",
+                    "time": "",
+                    "tags": [],
+                    "transcript": transcript.get("full_text", ""),
+                    "video_id": vid,
+                }
+            )
+
+    # Match slide data to sessions by video_id
+    slides_dir = data_dir / "slides"
+    slides_matched = 0
+    if slides_dir.exists():
+        slides_data = {}
+        for sf in slides_dir.glob("*.json"):
+            sdata = json.loads(sf.read_text())
+            vid = sdata.get("video_id")
+            if vid:
+                slides_data[vid] = sdata
+
+        for session in sessions:
+            vid = session.get("video_id")
+            if vid and vid in slides_data:
+                slide_entries = slides_data[vid].get("slides", [])
+                slide_texts = [s.get("text", "") for s in slide_entries if s.get("text")]
+                slide_descs = [
+                    s.get("description", "") for s in slide_entries if s.get("description")
+                ]
+                session["slide_text"] = "\n\n".join(slide_texts) if slide_texts else ""
+                session["slide_descriptions"] = " | ".join(slide_descs) if slide_descs else ""
+                if slide_texts or slide_descs:
+                    slides_matched += 1
 
     out_path.write_text(json.dumps(sessions, indent=2, ensure_ascii=False))
-    console.print(f"{tag('clean')} Matched {matched_count} transcripts, saved to {out_path}")
+    console.print(
+        f"{tag('clean')} Matched {matched_count} transcripts, "
+        f"{slides_matched} slide sets, saved to {out_path}"
+    )
     return out_path

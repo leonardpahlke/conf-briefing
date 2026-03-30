@@ -75,10 +75,7 @@ def coerce_session(raw: dict) -> dict:
     if isinstance(speakers, str):
         speakers = [{"name": s.strip(), "company": ""} for s in speakers.split(",")]
     elif isinstance(speakers, list):
-        speakers = [
-            s if isinstance(s, dict) else {"name": str(s), "company": ""}
-            for s in speakers
-        ]
+        speakers = [s if isinstance(s, dict) else {"name": str(s), "company": ""} for s in speakers]
 
     return {
         "title": raw.get("title") or raw.get("name", ""),

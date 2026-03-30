@@ -277,9 +277,7 @@ def _fetch_all_details(
                 sched_id = _sched_id_from_url(detail_url)
                 if sched_id:
                     cache_file = cache_dir / f"{sched_id}.json"
-                    cache_file.write_text(
-                        json.dumps(sessions[idx], indent=2, ensure_ascii=False)
-                    )
+                    cache_file.write_text(json.dumps(sessions[idx], indent=2, ensure_ascii=False))
         pb.update(task, advance=1, description=f"{tag('sched')} {title_or_err[:50]}")
 
     with progress_bar() as pb:
