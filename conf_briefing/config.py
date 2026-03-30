@@ -16,7 +16,7 @@ class RecordingsConfig:
 class ConferenceConfig:
     name: str = "Conference"
     schedule: str = ""
-    sched_url: str = ""
+    schedule_url: str = ""
     sched_api_key: str = ""
     recordings: RecordingsConfig = field(default_factory=RecordingsConfig)
 
@@ -68,7 +68,7 @@ def load_config(path: str | Path) -> Config:
     conference = ConferenceConfig(
         name=conf_raw.get("name", "Conference"),
         schedule=conf_raw.get("schedule", ""),
-        sched_url=conf_raw.get("sched_url", ""),
+        schedule_url=conf_raw.get("schedule_url", ""),
         sched_api_key=conf_raw.get("sched_api_key", "") or os.environ.get("SCHED_API_KEY", ""),
         recordings=recordings,
     )

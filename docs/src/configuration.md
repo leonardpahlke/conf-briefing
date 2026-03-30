@@ -12,7 +12,7 @@ events/kubecon-eu-2026/       → data directory (gitignored)
 ```toml
 [conference]
 name = "KubeCon EU 2026"
-sched_url = "https://kccnceu2026.sched.com"
+schedule_url = "https://kccnceu2026.sched.com"
 # sched_api_key = "${SCHED_API_KEY}"
 
 [conference.recordings]
@@ -33,7 +33,7 @@ top_k = 15
 |----------------|-------------------------------------------------------------------|
 | `name`         | Display name used in report headers.                              |
 | `schedule`     | Path to schedule data file (titles, abstracts, speakers, tracks). |
-| `sched_url`    | Sched.com URL for automatic schedule fetching.                    |
+| `schedule_url` | URL to a schedule provider (e.g. sched.com). Auto-detected.      |
 | `sched_api_key`| API key for Sched (if fetching programmatically).                 |
 
 ### Recordings
