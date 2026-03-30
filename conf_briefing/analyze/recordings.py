@@ -68,10 +68,18 @@ def analyze_single_talk(config: Config, session: dict) -> dict | None:
     if not transcript or len(transcript) < 100:
         return None
 
-    speakers = ", ".join(
-        f"{s['name']} ({s['company']})" if s.get("company") else s["name"]
-        for s in session.get("speakers", [])
-    ) or "Unknown"
+    # Append slide content if available
+    slide_text = session.get("slide_text", "")
+    if slide_text:
+        transcript = transcript + f"\n\n[SLIDE CONTENT]\n{slide_text}"
+
+    speakers = (
+        ", ".join(
+            f"{s['name']} ({s['company']})" if s.get("company") else s["name"]
+            for s in session.get("speakers", [])
+        )
+        or "Unknown"
+    )
 
     prompt = SINGLE_TALK_PROMPT.format(
         title=session["title"],
@@ -136,7 +144,8 @@ def analyze_recordings(config: Config) -> Path:
                 pb.update(task, advance=1, description=f"{tag('analyze')} {title}")
             except Exception as e:
                 pb.update(
-                    task, advance=1,
+                    task,
+                    advance=1,
                     description=f"{tag('analyze')} {title} [red]failed[/red]",
                 )
                 console.print(f"  {tag('analyze')} [red]{title} — {e}[/red]")
@@ -150,7 +159,7 @@ def analyze_recordings(config: Config) -> Path:
         console.print(
             f"{tag('analyze')} Synthesizing insights across {len(talk_analyses)} talks..."
         )
-        with console.status(f"{tag('analyze')} Synthesizing with Claude..."):
+        with console.status(f"{tag('analyze')} Synthesizing..."):
             synthesis = synthesize_analyses(config, talk_analyses)
         synthesis["individual_talks"] = talk_analyses
     else:

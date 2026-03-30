@@ -70,7 +70,7 @@ def analyze_agenda(config: Config) -> Path:
     )
 
     console.print(f"{tag('analyze')} Running agenda analysis on {len(sessions)} sessions...")
-    with console.status(f"{tag('analyze')} Analyzing agenda with Claude..."):
+    with console.status(f"{tag('analyze')} Analyzing agenda..."):
         result = query_llm_json(config, SYSTEM_PROMPT, prompt, max_tokens=8192)
 
     out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False))

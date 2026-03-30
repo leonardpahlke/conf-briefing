@@ -26,15 +26,23 @@ class ConferenceConfig:
 
 @dataclass
 class LLMConfig:
-    model: str = "claude-sonnet-4-20250514"
+    model: str = "qwen3:14b"
+    ollama_base_url: str = "http://localhost:11434"
+
+
+_DEFAULT_INITIAL_PROMPT = (
+    "KubeCon, Kubernetes, Istio, eBPF, Cilium, Prometheus, gRPC, Envoy, "
+    "ArgoCD, Helm, containerd, CRI-O, Knative, Backstage, OpenTelemetry, Crossplane"
+)
 
 
 @dataclass
 class ExtractConfig:
-    whisper_model: str = "large-v3-turbo"
+    whisper_model: str = "deepdml/faster-whisper-large-v3-turbo-ct2"
     device: str = "auto"  # "auto", "cuda", "cpu"
     compute_type: str = "auto"  # "auto", "float16", "int8"
     scene_threshold: float = 27.0  # PySceneDetect ContentDetector threshold
+    initial_prompt: str = _DEFAULT_INITIAL_PROMPT  # domain-specific terminology for transcription
 
 
 @dataclass
@@ -109,20 +117,22 @@ def load_config(path: str | Path) -> Config:
     extract_raw = raw.get("extract", {})
     _warn_unknown(
         extract_raw,
-        {"whisper_model", "device", "compute_type", "scene_threshold"},
+        {"whisper_model", "device", "compute_type", "scene_threshold", "initial_prompt"},
         "extract",
     )
     extract = ExtractConfig(
-        whisper_model=extract_raw.get("whisper_model", "large-v3-turbo"),
+        whisper_model=extract_raw.get("whisper_model", "deepdml/faster-whisper-large-v3-turbo-ct2"),
         device=extract_raw.get("device", "auto"),
         compute_type=extract_raw.get("compute_type", "auto"),
         scene_threshold=extract_raw.get("scene_threshold", 27.0),
+        initial_prompt=extract_raw.get("initial_prompt", _DEFAULT_INITIAL_PROMPT),
     )
 
     llm_raw = raw.get("llm", {})
-    _warn_unknown(llm_raw, {"model"}, "llm")
+    _warn_unknown(llm_raw, {"model", "ollama_base_url"}, "llm")
     llm = LLMConfig(
-        model=llm_raw.get("model", "claude-sonnet-4-20250514"),
+        model=llm_raw.get("model", "qwen3:14b"),
+        ollama_base_url=llm_raw.get("ollama_base_url", "http://localhost:11434"),
     )
 
     query_raw = raw.get("query", {})

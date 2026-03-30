@@ -1,10 +1,11 @@
 """Slide extraction: scene detection, deduplication, and OCR."""
 
 import json
+import time
 from pathlib import Path
 
 from conf_briefing.config import Config
-from conf_briefing.console import console, progress_bar, tag
+from conf_briefing.console import console, tag
 
 
 def _extract_frames(video_path: Path, output_dir: Path, threshold: float) -> list[dict]:
@@ -79,7 +80,7 @@ def _dedup_frames(frames: list[dict], max_distance: int = 6) -> list[dict]:
 
 
 def _ocr_frames(frames: list[dict]) -> list[dict]:
-    """Run OCR on each frame image."""
+    """Run Tesseract OCR on each frame image."""
     import pytesseract
     from PIL import Image
 
@@ -98,7 +99,11 @@ def _ocr_frames(frames: list[dict]) -> list[dict]:
     return results
 
 
-def extract_slides(video_path: Path, output_dir: Path, threshold: float = 27.0) -> Path:
+def extract_slides(
+    video_path: Path,
+    output_dir: Path,
+    threshold: float = 27.0,
+) -> Path:
     """Extract slides from a single video. Returns path to slides JSON."""
     video_id = video_path.stem
     frames_dir = output_dir / video_id
@@ -157,17 +162,18 @@ def extract_all_slides(config: Config) -> list[Path]:
     threshold = config.extract.scene_threshold
     console.print(
         f"{tag('slides')} Extracting slides from {len(to_process)} video(s) "
-        f"(threshold={threshold})."
+        f"(threshold={threshold}, ocr=tesseract)."
     )
 
     results = list(existing)
-    with progress_bar() as pb:
-        task = pb.add_task(f"{tag('slides')} Extracting slides", total=len(to_process))
-        for vf in to_process:
-            console.print(f"{tag('slides')} Processing: {vf.name}")
+    total = len(to_process)
+    for i, vf in enumerate(to_process, 1):
+        with console.status(f"{tag('slides')} [{i}/{total}] Processing {vf.name}..."):
+            t0 = time.monotonic()
             out = extract_slides(vf, output_dir, threshold)
-            results.append(out)
-            pb.advance(task)
+            elapsed = time.monotonic() - t0
+        console.print(f"{tag('slides')} [{i}/{total}] {vf.name} ({elapsed:.0f}s)")
+        results.append(out)
 
-    console.print(f"{tag('slides')} Extracted slides from {len(to_process)} video(s).")
+    console.print(f"{tag('slides')} Extracted slides from {total} video(s).")
     return results

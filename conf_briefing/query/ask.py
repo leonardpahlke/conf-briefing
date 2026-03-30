@@ -1,4 +1,4 @@
-"""RAG question answering: retrieve chunks and generate answers via Claude."""
+"""RAG question answering: retrieve chunks and generate answers."""
 
 from rich.table import Table
 

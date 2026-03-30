@@ -65,7 +65,7 @@ def rank_clusters(config: Config) -> Path:
     )
 
     console.print(f"{tag('analyze')} Ranking {len(clusters)} clusters...")
-    with console.status(f"{tag('analyze')} Ranking clusters with Claude..."):
+    with console.status(f"{tag('analyze')} Ranking clusters..."):
         result = query_llm_json(config, SYSTEM_PROMPT, prompt, max_tokens=8192)
 
     out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False))

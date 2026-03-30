@@ -24,12 +24,19 @@
             mdbook
             ollama
             chromium
-            ffmpeg      # needed by scenedetect/opencv for video I/O
-            tesseract   # OCR engine binary for pytesseract
+            ffmpeg       # needed by scenedetect/opencv for video I/O
+            tesseract    # OCR engine binary for pytesseract (fallback)
+            # whisper-cpp: install separately with ROCm/Vulkan support
+            # see: https://github.com/ggml-org/whisper.cpp#building
+            # preflight auto-detects if whisper-cpp is on PATH
           ];
 
           LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
             pkgs.stdenv.cc.cc.lib
+            pkgs.libxcb             # needed by opencv/scenedetect at import time
+            pkgs.libx11
+            pkgs.libGL              # needed by opencv (libGL.so.1)
+            pkgs.glib               # needed by opencv (libgthread-2.0.so.0)
           ];
 
           shellHook = ''
