@@ -1,0 +1,56 @@
+# Agenda Analysis: {{ conference_name }}
+
+{{ agenda.get("narrative", "No narrative generated.") }}
+
+## Topic Landscape
+
+![Keyword Cloud](./images/keyword_cloud.png)
+
+![Topic Frequency](./images/topic_frequency.svg)
+
+### Top Keywords
+
+{% for kw in agenda.get("top_keywords", []) -%}
+- {{ kw }}
+{% endfor %}
+
+## Topic Clusters
+
+{% for cluster in agenda.get("clusters", []) %}
+### {{ cluster.name }}
+
+{{ cluster.description }}
+
+**Keywords:** {{ cluster.keywords | join(", ") }}
+
+**Companies:** {{ cluster.companies | join(", ") }}
+
+<details>
+<summary>Talks ({{ cluster.talks | length }})</summary>
+
+{% for talk in cluster.talks -%}
+- {{ talk }}
+{% endfor %}
+</details>
+
+{% endfor %}
+
+## Company Presence
+
+![Company Presence](./images/company_presence.svg)
+
+| Company | Talks |
+|---------|-------|
+{% for company, count in agenda.get("company_presence", {}).items() -%}
+| {{ company }} | {{ count }} |
+{% endfor %}
+
+## Track Distribution
+
+![Track Distribution](./images/track_distribution.svg)
+
+| Track | Sessions |
+|-------|----------|
+{% for track, count in agenda.get("track_distribution", {}).items() -%}
+| {{ track }} | {{ count }} |
+{% endfor %}

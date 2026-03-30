@@ -1,0 +1,38 @@
+# Cluster Ranking: {{ conference_name }}
+
+![Cluster Relevance](./images/cluster_relevance.svg)
+
+## Ranked Clusters
+
+{% for cluster in ranking %}
+### {{ cluster.rank }}. {{ cluster.name }}
+
+**Relevance Score:** {{ "%.0f" | format(cluster.relevance_score * 100) }}%
+
+{{ cluster.summary }}
+
+**Why it matters:** {{ cluster.relevance_argument }}
+
+{% if cluster.recommended_talks %}
+#### Recommended Talks
+
+{% for talk in cluster.recommended_talks -%}
+- {{ talk }}
+{% endfor %}
+{% endif %}
+
+{% if cluster.skip_reason -%}
+> **Note:** {{ cluster.skip_reason }}
+{% endif %}
+
+---
+
+{% endfor %}
+
+## Quick Reference
+
+| Rank | Cluster | Relevance | Top Pick |
+|------|---------|-----------|----------|
+{% for cluster in ranking -%}
+| {{ cluster.rank }} | {{ cluster.name }} | {{ "%.0f" | format(cluster.relevance_score * 100) }}% | {{ cluster.recommended_talks[0] if cluster.recommended_talks else "—" }} |
+{% endfor %}

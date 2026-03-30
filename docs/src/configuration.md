@@ -1,42 +1,64 @@
 # Configuration
 
-> **Note:** The configuration format is not finalized. Examples below show the intended direction.
+Each conference event is defined by a TOML file under `events/`. The data directory is derived automatically from the config file path:
 
-```yaml
-conference:
-  name: "KubeCon EU 2025"
-  schedule: "schedule.yaml"
-  recordings:
-    youtube_playlist: "https://www.youtube.com/playlist?list=PLj6h78..."
-
-focus:
-  topics:
-    - "platform engineering"
-    - "observability"
-    - "security"
-
-output:
-  directory: "reports/"
+```
+events/kubecon-eu-2026.toml   → config file (tracked in git)
+events/kubecon-eu-2026/       → data directory (gitignored)
 ```
 
-## Conference Source
+## Example
 
-| Field          | Description                                                              |
-|----------------|--------------------------------------------------------------------------|
-| `name`         | Display name used in report headers.                                     |
-| `schedule`     | Path to schedule data file (titles, abstracts, speakers, tracks).        |
-| `recordings`   | YouTube playlist URL or directory of pre-downloaded transcripts.         |
+```toml
+[conference]
+name = "KubeCon EU 2026"
+sched_url = "https://kccnceu2026.sched.com"
+# sched_api_key = "${SCHED_API_KEY}"
 
-## Focus Areas
+[conference.recordings]
+youtube_playlist = "https://www.youtube.com/playlist?list=PLj6h78..."
 
-| Field    | Description                                      |
-|----------|--------------------------------------------------|
-| `topics` | List of topics or keywords to prioritize.        |
+[llm]
+model = "claude-sonnet-4-20250514"
 
-Topics influence cluster ranking and how insights are prioritized in the recording analysis. When omitted, the tool produces a neutral analysis.
+[query]
+embedding_model = "nomic-embed-text"
+ollama_base_url = "http://localhost:11434"
+top_k = 15
+```
 
-## Output
+## Conference
 
-| Field       | Description                           | Default    |
-|-------------|---------------------------------------|------------|
-| `directory` | Directory for generated report files. | `reports/` |
+| Field          | Description                                                       |
+|----------------|-------------------------------------------------------------------|
+| `name`         | Display name used in report headers.                              |
+| `schedule`     | Path to schedule data file (titles, abstracts, speakers, tracks). |
+| `sched_url`    | Sched.com URL for automatic schedule fetching.                    |
+| `sched_api_key`| API key for Sched (if fetching programmatically).                 |
+
+### Recordings
+
+| Field              | Description                                     |
+|--------------------|-------------------------------------------------|
+| `youtube_playlist` | YouTube playlist URL for talk recordings.        |
+| `video_ids`        | List of individual YouTube video IDs.            |
+
+## LLM
+
+| Field   | Description                       | Default                    |
+|---------|-----------------------------------|----------------------------|
+| `model` | Claude model to use for analysis. | `claude-sonnet-4-20250514` |
+
+The Anthropic API key is read from the `ANTHROPIC_API_KEY` environment variable.
+
+## RAG Query
+
+Settings for the vector-based retrieval system. Requires [Ollama](https://ollama.com/) running locally.
+
+| Field             | Description                                          | Default                    |
+|-------------------|------------------------------------------------------|----------------------------|
+| `embedding_model` | Ollama model used for embeddings.                    | `nomic-embed-text`         |
+| `ollama_base_url` | Base URL of the Ollama server.                       | `http://localhost:11434`   |
+| `top_k`           | Default number of chunks to retrieve per query.      | `15`                       |
+
+The ChromaDB vector store is located at `{data_dir}/chroma/` (derived automatically from the config path).

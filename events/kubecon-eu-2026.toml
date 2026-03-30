@@ -1,0 +1,15 @@
+[conference]
+name = "KubeCon EU 2026"
+sched_url = "https://kccnceu2026.sched.com"
+# sched_api_key read from SCHED_API_KEY env var
+
+[conference.recordings]
+youtube_playlist = "https://www.youtube.com/playlist?list=PLj6h78yzYM2MXCOWSN9CqqID6OOvF7wxL"
+
+[llm]
+model = "claude-sonnet-4-20250514"
+
+[query]
+embedding_model = "nomic-embed-text"
+ollama_base_url = "http://localhost:11434"
+top_k = 15

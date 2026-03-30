@@ -1,0 +1,64 @@
+# Recording Analysis: {{ conference_name }}
+
+{{ recordings.get("narrative", "No synthesis narrative generated.") }}
+
+## Cross-Cutting Themes
+
+{% for theme in recordings.get("cross_cutting_themes", []) %}
+### {{ theme.theme }}
+
+{{ theme.description }}
+
+**Supporting talks:** {{ theme.supporting_talks | join(", ") }}
+
+{% endfor %}
+
+## Emerging Technologies
+
+| Technology | Mentions | Context |
+|------------|----------|---------|
+{% for tech in recordings.get("emerging_technologies", []) -%}
+| {{ tech.technology }} | {{ tech.mentions }} | {{ tech.context }} |
+{% endfor %}
+
+## Common Problems
+
+{% for problem in recordings.get("common_problems", []) -%}
+- {{ problem }}
+{% endfor %}
+
+## Individual Talk Summaries
+
+{% for talk in talks %}
+### {{ talk.title }}
+
+{{ talk.summary }}
+
+{% if talk.key_takeaways %}
+**Key Takeaways:**
+{% for takeaway in talk.key_takeaways -%}
+- {{ takeaway }}
+{% endfor %}
+{% endif %}
+
+{% if talk.tools_and_projects %}
+**Tools & Projects Mentioned:** {{ talk.tools_and_projects | join(", ") }}
+{% endif %}
+
+{% if talk.emerging_signals %}
+**Emerging Signals:** {{ talk.emerging_signals | join(", ") }}
+{% endif %}
+
+{% if talk.qa_highlights %}
+<details>
+<summary>Q&A Highlights</summary>
+
+{% for qa in talk.qa_highlights -%}
+- {{ qa }}
+{% endfor %}
+</details>
+{% endif %}
+
+---
+
+{% endfor %}
