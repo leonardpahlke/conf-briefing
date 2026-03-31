@@ -25,15 +25,15 @@ pull-models event="kubecon-eu-2026" gpu="cpu":
         amd)
             echo ":: Syncing base dependencies..."
             uv sync $extras
-            echo ":: Installing ROCm 7.2 PyTorch..."
-            # Install torch from PyTorch's official ROCm 7.2 index first,
-            # then whisperx from PyPI. Two steps prevent uv from pulling
-            # CUDA torch wheels when resolving whisperx deps.
-            uv pip install torch torchaudio \
-                --index-url https://download.pytorch.org/whl/rocm7.2
             echo ":: Installing WhisperX + transformers..."
             # Pin transformers<5 to stay compatible with huggingface-hub in lockfile.
             uv pip install "whisperx>=3.3" "transformers>=4.40,<5"
+            echo ":: Installing ROCm 7.2 PyTorch (replacing CUDA wheels)..."
+            # whisperx pulls CUDA torch as a dependency, so we overwrite it
+            # with the ROCm build. --reinstall is required because uv won't
+            # replace an installed torch that already satisfies the constraint.
+            uv pip install --reinstall torch torchaudio \
+                --index-url https://download.pytorch.org/whl/rocm7.2
             # NixOS blocks shared libraries with executable stacks. ctranslate2
             # ships with RWE GNU_STACK — clear the execute bit so it can load.
             python3 scripts/fix-execstack.py

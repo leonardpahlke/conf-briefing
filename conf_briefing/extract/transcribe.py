@@ -222,21 +222,41 @@ def transcribe_all_whisperx(
 
     # Suppress tqdm bars and noisy warnings BEFORE importing whisperx/torch,
     # since pyannote and torch fire warnings/progress at import time.
+    # NOTE: Python's C-level warning filter uses pattern.match() (anchored at
+    # start of string). pyannote's torchcodec warning starts with '\n', so we
+    # need (?s) (DOTALL) to let '.' match newlines, otherwise the filter fails.
     os.environ["TQDM_DISABLE"] = "1"
-    warnings.filterwarnings("ignore", message=".*torchcodec.*")
-    warnings.filterwarnings("ignore", message=".*libnvrtc.*")
-    warnings.filterwarnings("ignore", message=".*libtorchcodec.*")
-    warnings.filterwarnings("ignore", message=".*amdgpu.ids.*")
+    warnings.filterwarnings("ignore", message=r"(?s).*torchcodec.*")
+    warnings.filterwarnings("ignore", message=r"(?s).*libnvrtc.*")
+    warnings.filterwarnings("ignore", message=r"(?s).*libtorchcodec.*")
+    warnings.filterwarnings("ignore", message=r"(?s).*amdgpu.ids.*")
     warnings.filterwarnings("ignore", category=SyntaxWarning)  # pyannote \\s regex
-    warnings.filterwarnings("ignore", message=".*weights_only.*")
-    warnings.filterwarnings("ignore", message=".*upgrade_checkpoint.*")
-    warnings.filterwarnings("ignore", message=".*Bad things might happen.*")
+    warnings.filterwarnings("ignore", message=r"(?s).*weights_only.*")
+    warnings.filterwarnings("ignore", message=r"(?s).*upgrade_checkpoint.*")
+    warnings.filterwarnings("ignore", message=r"(?s).*Bad things might happen.*")
+    warnings.filterwarnings("ignore", message=r"(?s).*TF32.*")  # pyannote ReproducibilityWarning
     logging.getLogger("pyannote.audio").setLevel(logging.ERROR)
     logging.getLogger("lightning.pytorch").setLevel(logging.ERROR)
     logging.getLogger("lightning_utilities").setLevel(logging.ERROR)
     logging.getLogger("lightning_fabric").setLevel(logging.ERROR)
+    logging.getLogger("lightning.pytorch.utilities.migration").setLevel(logging.ERROR)
+
+    import torch
+
+    # Disable MIOpen (ROCm's cuDNN equivalent) to avoid HIPRTC JIT compilation.
+    # MIOpen's runtime compiler can't find headers on NixOS (/nix/store paths).
+    # GPU operations still work — just without MIOpen's optimized kernels.
+    # Performance impact is negligible for inference workloads.
+    if device == "rocm":
+        torch.backends.cudnn.enabled = False
+        torch.backends.cudnn.benchmark = False
 
     import whisperx
+
+    # whisperx.log_utils.get_logger() auto-calls setup_logging(level="info")
+    # on first use, overriding any level we set beforehand. Reconfigure it.
+    from whisperx.log_utils import setup_logging as _wxlog_setup
+    _wxlog_setup(level="error")
 
     data_dir = config.data_dir
     videos_dir = data_dir / "videos"
@@ -333,7 +353,7 @@ def transcribe_all_whisperx(
         with console.status(f"{tag('whisperx')} Loading diarization model..."):
             try:
                 diarize_model = whisperx.diarize.DiarizationPipeline(
-                    use_auth_token=hf_token, device=torch_device
+                    token=hf_token, device=torch_device
                 )
             except Exception as exc:
                 raise RuntimeError(

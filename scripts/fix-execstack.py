@@ -36,8 +36,14 @@ def fix_execstack(path: str) -> bool:
 
 if __name__ == "__main__":
     fixed = 0
-    for so in glob.glob(".venv/**/ctranslate2.libs/*.so*", recursive=True):
-        if fix_execstack(so):
-            print(f"  Fixed execstack: {so}")
-            fixed += 1
+    # Cover both ctranslate2.libs/ and ctranslate2 package .so files (ROCm build)
+    patterns = [
+        ".venv/**/ctranslate2.libs/*.so*",
+        ".venv/**/ctranslate2/*.so*",
+    ]
+    for pattern in patterns:
+        for so in glob.glob(pattern, recursive=True):
+            if fix_execstack(so):
+                print(f"  Fixed execstack: {so}")
+                fixed += 1
     sys.exit(0)

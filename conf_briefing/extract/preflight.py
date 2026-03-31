@@ -65,7 +65,25 @@ def _resolve_device(config_device: str, config_compute: str) -> tuple[str, str]:
         try:
             import torch
 
-            if torch.cuda.is_available():
+            # Suppress noisy "(null): No such file or directory" from HIP
+            # runtime when it probes for optional libhsa-amd-aqlprofile64.so.
+            import os
+            import sys
+
+            _devnull = open(os.devnull, "w")
+            _old_stderr = sys.stderr
+            _stderr_fd = sys.stderr.fileno()
+            _old_stderr_fd = os.dup(_stderr_fd)
+            os.dup2(_devnull.fileno(), _stderr_fd)
+            try:
+                _cuda_available = torch.cuda.is_available()
+            finally:
+                os.dup2(_old_stderr_fd, _stderr_fd)
+                os.close(_old_stderr_fd)
+                _devnull.close()
+                sys.stderr = _old_stderr
+
+            if _cuda_available:
                 # ROCm torch exposes GPUs via torch.cuda but sets torch.version.hip
                 is_rocm = bool(getattr(torch.version, "hip", None))
                 # Verify GPU actually works — catches unsupported architectures
