@@ -59,8 +59,21 @@ Controls video processing: transcription, slide extraction, and optional VLM des
 | `scene_threshold` | PySceneDetect content threshold for slide extraction.           | `27.0`                                      |
 | `initial_prompt`  | Domain terminology hint for transcription accuracy.             | KubeCon/CNCF terms                          |
 | `vlm_model`       | Ollama vision model for slide descriptions. Empty = skip.       | `""`                                        |
+| `diarize`         | Enable speaker diarization (requires WhisperX + `HF_TOKEN`).   | `true`                                      |
 
-When `vlm_model` is set (e.g. `gemma3:12b`), the extract pipeline sends each slide image to the VLM after OCR. The VLM describes diagrams, architecture charts, and visual content that Tesseract cannot capture. Descriptions are stored in the slide JSON and flow into RAG chunks as `[Visual: ...]` annotations.
+### Transcription backends
+
+The pipeline auto-detects the best available backend:
+
+1. **WhisperX** (preferred) — includes speaker diarization via pyannote.audio. Requires `HF_TOKEN` env var for pyannote model download. Installed via `just pull-models <event> amd` or `nvidia`.
+2. **whisper.cpp** — native binary, good for ROCm without Python torch overhead.
+3. **faster-whisper** — Python-based fallback, works on CPU and CUDA.
+
+When `diarize = true` and WhisperX is available with `HF_TOKEN` set, transcripts include speaker labels (`[Speaker 1]`, `[Speaker 2]`) which improve Q&A detection and speaker perspective classification downstream.
+
+### VLM descriptions
+
+When `vlm_model` is set (e.g. `gemma3:12b`), the extract pipeline sends each slide image to the VLM after OCR. The VLM describes diagrams, architecture charts, visual content, and notes any visible URLs or QR codes. Descriptions are stored in the slide JSON and flow into RAG chunks as `[Visual: ...]` annotations.
 
 ## LLM
 

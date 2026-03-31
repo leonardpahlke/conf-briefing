@@ -121,9 +121,7 @@
 | {{ item.technology }} | {{ item.ring }} | {{ item.evidence_quality }} | {{ item.rationale }} |
 {% endfor %}
 
-{% if recordings.get("maturity_landscape") | length > 0 %}
 **Ring definitions:** *Assess* = worth looking at; *Trial* = safe to experiment in non-critical paths; *Adopt* = proven, recommended for production; *Hold* = proceed with caution or reconsider.
-{% endif %}
 {% endif %}
 
 {% if talks %}
@@ -165,7 +163,7 @@
 {% endif %}
 
 {% if talks %}
-### Caveats & Concerns from Individual Talks
+### Caveats & Concerns
 
 {% for talk in talks %}
 {% if talk.get("caveats_and_concerns") %}
@@ -180,18 +178,23 @@
 
 ---
 
-## 6. Stakeholders
+## 6. Signals
 
-{% if recordings.get("stakeholder_map") %}
-### Stakeholder Map
+{% if recordings.get("emerging_technologies") %}
+### Emerging Technologies
 
-![Stakeholder Breakdown](./images/stakeholder_breakdown.svg)
+{% for tech in recordings.get("emerging_technologies", []) %}
+- **{{ tech.technology }}** ({{ tech.mentions }} mentions) — {{ tech.context }}
+{% endfor %}
+{% endif %}
 
-{% for s in recordings.get("stakeholder_map", []) %}
-**{{ s.company }}** ({{ s.role }}, {{ s.talk_count }} talks)
-{% if s.pushing %}- Pushing: {{ s.pushing | join(", ") }}{% endif %}
-{% if s.notable_claims %}- Notable claims: {{ s.notable_claims | join("; ") }}{% endif %}
+{% if recordings.get("technology_relationships") %}
+### Technology Relationships
 
+| Entity A | Relation | Entity B | Supporting Talks |
+|----------|----------|----------|-----------------|
+{% for rel in recordings.get("technology_relationships", []) -%}
+| {{ rel.entity_a }} | {{ rel.relation }} | {{ rel.entity_b }} | {{ rel.supporting_talks | join(", ") }} |
 {% endfor %}
 {% endif %}
 
@@ -205,47 +208,13 @@
 {% endfor %}
 {% endif %}
 
-{% if not recordings.get("stakeholder_map") and not talks %}
-*Stakeholder data not available — run recording analysis first.*
-{% endif %}
-
----
-
-## 7. Signals
-
-{% if recordings.get("quiet_signals") %}
-### Quiet Signals
-
-{% for sig in recordings.get("quiet_signals", []) %}
-- **{{ sig.signal }}** (from: {{ sig.source_talk }}) — {{ sig.why_notable }}
-{% endfor %}
-{% endif %}
-
-{% if recordings.get("absent_topics") %}
-### Absent Topics
-
-| Topic | Expected Because | Possible Reason |
-|-------|-----------------|-----------------|
-{% for item in recordings.get("absent_topics", []) -%}
-| {{ item.topic }} | {{ item.expected_because }} | {{ item.possible_reason }} |
-{% endfor %}
-{% endif %}
-
-{% if recordings.get("emerging_technologies") %}
-### Emerging Technology Signals
-
-{% for tech in recordings.get("emerging_technologies", []) %}
-- **{{ tech.technology }}** ({{ tech.mentions }} mentions) — {{ tech.context }}
-{% endfor %}
-{% endif %}
-
-{% if not recordings.get("quiet_signals") and not recordings.get("absent_topics") %}
+{% if not recordings.get("emerging_technologies") and not recordings.get("technology_relationships") %}
 *Signal data not available — run recording analysis first.*
 {% endif %}
 
 ---
 
-## 8. Actions
+## 7. Actions
 
 {% if recordings.get("recommended_actions") %}
 ### Recommended Actions
@@ -287,12 +256,29 @@
 {% endfor %}
 {% endif %}
 
-{% if talk.concrete_metrics %}
-**Concrete Metrics:** {{ talk.concrete_metrics | join(", ") }}
-{% endif %}
-
 {% if talk.tools_and_projects %}
 **Tools & Projects:** {{ talk.tools_and_projects | join(", ") }}
+{% endif %}
+
+{% if talk.get("technology_stance") %}
+**Technology Stance:**
+{% for ts in talk.technology_stance -%}
+- {{ ts.technology }}: **{{ ts.stance }}** — {{ ts.evidence }}
+{% endfor %}
+{% endif %}
+
+{% if talk.get("relationships") %}
+**Technology Relationships:**
+{% for rel in talk.relationships -%}
+- {{ rel.entity_a }} {{ rel.relation }} {{ rel.entity_b }}
+{% endfor %}
+{% endif %}
+
+{% if talk.get("references") %}
+**References:**
+{% for ref in talk.references -%}
+- {{ ref }}
+{% endfor %}
 {% endif %}
 
 {% if talk.qa_highlights %}

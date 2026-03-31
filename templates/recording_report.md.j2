@@ -27,6 +27,16 @@
 - {{ problem }}
 {% endfor %}
 
+{% if recordings.get("technology_relationships") %}
+## Technology Relationships
+
+| Entity A | Relation | Entity B | Supporting Talks |
+|----------|----------|----------|-----------------|
+{% for rel in recordings.get("technology_relationships", []) -%}
+| {{ rel.entity_a }} | {{ rel.relation }} | {{ rel.entity_b }} | {{ rel.supporting_talks | join(", ") }} |
+{% endfor %}
+{% endif %}
+
 ## Individual Talk Summaries
 
 {% for talk in talks %}
@@ -42,11 +52,21 @@
 {% endif %}
 
 {% if talk.tools_and_projects %}
-**Tools & Projects Mentioned:** {{ talk.tools_and_projects | join(", ") }}
+**Tools & Projects:** {{ talk.tools_and_projects | join(", ") }}
 {% endif %}
 
-{% if talk.emerging_signals %}
-**Emerging Signals:** {{ talk.emerging_signals | join(", ") }}
+{% if talk.get("technology_stance") %}
+**Technology Stance:**
+{% for ts in talk.technology_stance -%}
+- {{ ts.technology }}: **{{ ts.stance }}** — {{ ts.evidence }}
+{% endfor %}
+{% endif %}
+
+{% if talk.get("references") %}
+**References:**
+{% for ref in talk.references -%}
+- {{ ref }}
+{% endfor %}
 {% endif %}
 
 {% if talk.qa_highlights %}

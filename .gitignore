@@ -9,3 +9,5 @@ __pycache__/
 dist/
 .ruff_cache/
 .direnv/
+.rocm-torch
+.env

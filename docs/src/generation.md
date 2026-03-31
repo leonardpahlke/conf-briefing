@@ -10,10 +10,18 @@ Output files are written to the event's data directory (e.g. `events/kubecon-eu-
 
 ## Setup
 
-Pull all required Ollama models (LLM, embeddings, and VLM if configured):
+Sync dependencies and pull all required Ollama models (LLM, embeddings, and VLM if configured):
 
 ```sh
-just pull-models kubecon-eu-2026
+just pull-models kubecon-eu-2026 cpu      # CPU-only (faster-whisper, no diarization)
+just pull-models kubecon-eu-2026 amd      # AMD/ROCm (WhisperX + diarization)
+just pull-models kubecon-eu-2026 nvidia   # NVIDIA/CUDA (WhisperX + diarization)
+```
+
+For diarization (speaker identification), set a Hugging Face token for pyannote model access:
+
+```sh
+export HF_TOKEN="hf_..."
 ```
 
 Verify extract dependencies are available:
@@ -57,11 +65,18 @@ After the conference, when recordings are published, the `extract` command proce
 just extract kubecon-eu-2026
 ```
 
-1. **Transcription** — audio is transcribed using Whisper (faster-whisper or whisper.cpp, auto-detected). An `initial_prompt` provides domain terminology to improve accuracy.
-2. **Slide extraction** — scene detection finds slide transitions, perceptual hashing removes duplicates, and Tesseract OCR extracts text from each slide.
-3. **VLM descriptions** (optional) — when `vlm_model` is configured, each slide image is sent to a vision-language model to describe diagrams, architecture charts, and visual content that OCR cannot capture.
+1. **Transcription** — audio is transcribed using the best available backend (WhisperX > whisper.cpp > faster-whisper, auto-detected). An `initial_prompt` provides domain terminology to improve accuracy. When WhisperX is installed with `HF_TOKEN` set, transcripts include speaker diarization (`[Speaker 1]`, `[Speaker 2]`).
+2. **Slide extraction** — scene detection finds slide transitions, perceptual hashing removes duplicates, and Tesseract OCR extracts text from each slide. URLs and GitHub links are extracted from slide text.
+3. **VLM descriptions** (optional) — when `vlm_model` is configured, each slide image is sent to a vision-language model to describe diagrams, architecture charts, visual content, and any visible URLs or QR codes.
 
-The extract step is followed automatically by cleaning and LLM analysis:
+The extract step is followed by cleaning, matching, and LLM analysis:
+
+- **Slide-transcript alignment** — slides are interleaved with transcript segments by timestamp, giving the LLM a chronological view of what was shown and said together.
+- **Entity canonicalization** — CNCF/cloud-native aliases are normalized (e.g. "k8s" becomes "Kubernetes", "otel" becomes "OpenTelemetry") for consistent entity tracking across talks.
+- **Structured output** — LLM responses use Pydantic schemas via Ollama's structured output, guaranteeing valid JSON without parse retries.
+- **Grounding** — prompts instruct the LLM to only include information explicitly stated in the transcript, preferring omission over fabrication.
+
+Per-talk analysis extracts:
 
 - **Key takeaways** — main points and conclusions per talk.
 - **Q&A extraction** — audience questions and answers given.
@@ -69,14 +84,18 @@ The extract step is followed automatically by cleaning and LLM analysis:
 - **Emerging technology scan** — new tools, projects, and ideas mentioned.
 - **Maturity assessment** — per-talk technology maturity ratings (assess/trial/adopt/hold) with evidence.
 - **Speaker perspective** — whether each speaker is a practitioner, vendor, maintainer, or academic.
+- **Technology stance** — how speakers feel about each technology (enthusiastic/cautious/critical/neutral) with evidence.
+- **Technology relationships** — explicit relationships between technologies (replaces, competes with, builds on, integrates with, extends).
 - **Caveats and concerns** — limitations and warnings mentioned.
+- **References** — URLs, GitHub repos, and citations from slides and transcript.
+
+The synthesis step aggregates across all talks:
+
 - **Cross-talk synthesis** — comparing perspectives across talks on the same topic.
-
-The synthesis step additionally produces:
-
 - **Tensions** — contradictions and unresolved debates between talks.
 - **Maturity landscape** — aggregated technology maturity ratings across all talks.
 - **Stakeholder map** — company roles, agendas, and notable claims.
+- **Technology relationships** — aggregated relationship graph with supporting talk lists.
 - **Quiet signals** — single mentions worth watching.
 - **Absent topics** — expected topics that nobody discussed.
 - **Recommended actions** — concrete next steps categorized by urgency.

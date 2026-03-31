@@ -21,10 +21,13 @@ events/kubecon-eu-2026/       → generated data (gitignored)
 ## Workflow
 
 1. **Configure** — create an event config under `events/` (see [Configuration](./configuration.md)).
-2. **Pull models** — `just pull-models <event>` downloads required Ollama models (LLM, embeddings, VLM).
+2. **Pull models** — `just pull-models <event> <gpu>` syncs dependencies and downloads Ollama models.
+   - `just pull-models kubecon-eu-2026 cpu` — CPU-only (default, faster-whisper)
+   - `just pull-models kubecon-eu-2026 amd` — AMD/ROCm with WhisperX diarization
+   - `just pull-models kubecon-eu-2026 nvidia` — NVIDIA/CUDA with WhisperX diarization
 3. **Collect** — `just collect <event>` fetches schedule data and downloads recordings.
-4. **Extract** — `just extract <event>` transcribes audio, extracts slides, describes visuals, and runs LLM analysis.
-5. **Report** — `just report <event>` generates markdown reports and charts.
+4. **Extract** — `just extract <event>` transcribes audio (with optional speaker diarization), extracts slides, describes visuals.
+5. **Report** — `just report <event>` cleans data, runs LLM analysis with structured output, and generates reports.
 6. **Query** — `just query <event> "your question"` for follow-up questions over all analysis data.
 
 See [Generation](./generation.md) for details on each step.

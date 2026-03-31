@@ -5,7 +5,7 @@ from conf_briefing.console import console, tag
 from conf_briefing.extract.describe import describe_all_slides
 from conf_briefing.extract.preflight import ExtractContext, check_extract_ready
 from conf_briefing.extract.slides import extract_all_slides
-from conf_briefing.extract.transcribe import transcribe_all
+from conf_briefing.extract.transcribe import transcribe_all, transcribe_all_whisperx
 from conf_briefing.extract.transcribe_whisper_cpp import transcribe_all_wcpp
 
 __all__ = [
@@ -16,6 +16,7 @@ __all__ = [
     "run_extract",
     "transcribe_all",
     "transcribe_all_wcpp",
+    "transcribe_all_whisperx",
 ]
 
 
@@ -25,7 +26,15 @@ def run_extract(config: Config) -> None:
     ctx = check_extract_ready(config)
 
     # Transcription — dispatch to best available backend
-    if ctx.transcribe_backend == "whisper-cpp":
+    if ctx.transcribe_backend == "whisperx":
+        transcribe_all_whisperx(
+            config,
+            device=ctx.device,
+            compute_type=ctx.compute_type,
+            initial_prompt=ctx.initial_prompt,
+            diarize=ctx.diarize,
+        )
+    elif ctx.transcribe_backend == "whisper-cpp":
         transcribe_all_wcpp(
             config,
             model_path=ctx.wcpp_model_path,

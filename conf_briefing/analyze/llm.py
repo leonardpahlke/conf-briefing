@@ -5,6 +5,7 @@ import re
 import time
 
 import ollama
+from pydantic import BaseModel
 
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
@@ -23,7 +24,15 @@ def is_llm_available(config: Config) -> bool:
         return False
 
 
-def query_llm(config: Config, system: str, prompt: str, max_tokens: int = 4096) -> str:
+def query_llm(
+    config: Config,
+    system: str,
+    prompt: str,
+    *,
+    max_tokens: int = 4096,
+    temperature: float = 0,
+    format: dict | None = None,
+) -> str:
     """Send a prompt to the LLM via Ollama and return the text response.
 
     Retries up to 3 times on transient errors with exponential backoff.
@@ -31,16 +40,20 @@ def query_llm(config: Config, system: str, prompt: str, max_tokens: int = 4096) 
     client = ollama.Client(host=config.llm.ollama_base_url)
     last_exc: Exception | None = None
 
+    kwargs: dict = {
+        "model": config.llm.model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+        "options": {"num_predict": max_tokens, "temperature": temperature},
+    }
+    if format is not None:
+        kwargs["format"] = format
+
     for attempt in range(len(_RETRY_DELAYS) + 1):
         try:
-            response = client.chat(
-                model=config.llm.model,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": prompt},
-                ],
-                options={"num_predict": max_tokens},
-            )
+            response = client.chat(**kwargs)
             text = response.message.content
             if not text:
                 raise ValueError("LLM returned empty response")
@@ -80,13 +93,40 @@ def _extract_json_from_text(text: str) -> str:
     return text.strip()
 
 
-def query_llm_json(config: Config, system: str, prompt: str, max_tokens: int = 4096) -> dict | list:
+def query_llm_json(
+    config: Config,
+    system: str,
+    prompt: str,
+    *,
+    max_tokens: int = 4096,
+    schema: type[BaseModel] | None = None,
+    temperature: float = 0,
+) -> dict | list:
     """Send a prompt to the LLM and parse the JSON response.
 
-    Retries once on JSON parse failure by re-querying the LLM.
+    When a Pydantic schema is provided, uses Ollama's structured output via the
+    `format` parameter — this guarantees valid JSON matching the schema, so no
+    manual extraction or retry is needed.
+
+    Falls back to extraction + retry when no schema is given.
     """
+    if schema is not None:
+        # Structured output: Ollama guarantees valid JSON matching the schema
+        response = query_llm(
+            config,
+            system,
+            prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            format=schema.model_json_schema(),
+        )
+        return json.loads(response)
+
+    # Fallback: extract JSON from free-form LLM text
     for attempt in range(2):
-        response = query_llm(config, system, prompt, max_tokens)
+        response = query_llm(
+            config, system, prompt, max_tokens=max_tokens, temperature=temperature
+        )
         extracted = _extract_json_from_text(response)
         try:
             return json.loads(extracted)
@@ -99,6 +139,6 @@ def query_llm_json(config: Config, system: str, prompt: str, max_tokens: int = 4
             raise ValueError(
                 f"LLM returned invalid JSON after retry.\n"
                 f"Response (first 500 chars): {response[:500]}"
-            )
+            ) from None
 
     raise ValueError("LLM JSON query failed")  # unreachable, satisfies type checker

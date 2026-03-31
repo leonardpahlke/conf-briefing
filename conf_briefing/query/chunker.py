@@ -465,6 +465,36 @@ def _load_action_chunks(recordings: dict) -> list[Chunk]:
     return chunks
 
 
+def _load_relationship_chunks(recordings: dict) -> list[Chunk]:
+    """Create one chunk per technology relationship."""
+    chunks = []
+    for i, rel in enumerate(recordings.get("technology_relationships", [])):
+        entity_a = rel.get("entity_a", "")
+        entity_b = rel.get("entity_b", "")
+        if not entity_a or not entity_b:
+            continue
+        relation = rel.get("relation", "")
+        talks = rel.get("supporting_talks", [])
+        parts = [
+            f"Technology Relationship: {entity_a} {relation} {entity_b}",
+        ]
+        if talks:
+            parts.append(f"Supporting talks: {', '.join(talks)}")
+        chunks.append(
+            Chunk(
+                id=f"technology_relationship:{_safe_id(entity_a)}-{_safe_id(entity_b)}:{i}",
+                text="\n\n".join(parts),
+                chunk_type="technology_relationship",
+                metadata={
+                    "source_file": "analysis_recordings.json",
+                    "talk_title": f"{entity_a} {relation} {entity_b}",
+                    "relation": relation,
+                },
+            )
+        )
+    return chunks
+
+
 def load_chunks(config: Config) -> list[Chunk]:
     """Load all data sources and produce chunks for indexing."""
     data_dir = config.data_dir
@@ -516,6 +546,7 @@ def load_chunks(config: Config) -> list[Chunk]:
     chunks.extend(_load_maturity_chunks(recordings))
     chunks.extend(_load_tension_chunks(recordings))
     chunks.extend(_load_action_chunks(recordings))
+    chunks.extend(_load_relationship_chunks(recordings))
 
     # Ensure every chunk has chunk_type in metadata for ChromaDB filtering
     for c in chunks:

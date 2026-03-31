@@ -11,10 +11,10 @@ whisper_model = "large-v3-turbo"
 device = "auto"
 compute_type = "auto"
 scene_threshold = 27.0
-vlm_model = "qwen3-vl:8b"
+vlm_model = "qwen3-vl:32b"
 
 [llm]
-model = "qwen3:14b"
+model = "qwen3:32b-q8_0"
 
 [query]
 embedding_model = "nomic-embed-text"

@@ -17,6 +17,7 @@ dependencies = [
     "chromadb>=0.5",
     "ollama>=0.4",
     "rich>=13.0",
+    "pydantic>=2.0",
 ]
 
 [project.scripts]
@@ -28,6 +29,9 @@ extract = [
     "scenedetect[opencv]>=0.6",
     "imagehash>=4.3",
     "pytesseract>=0.3",
+]
+diarize = [
+    "whisperx>=3.3",
 ]
 scrape = ["patchright>=1.40"]
 dev = ["ruff>=0.9"]

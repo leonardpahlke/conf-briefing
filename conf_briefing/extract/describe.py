@@ -12,7 +12,8 @@ from conf_briefing.console import console, tag
 
 _VLM_PROMPT = (
     "Describe the technical content of this conference presentation slide. "
-    "Focus on diagrams, architecture, data flow, and key visual elements. Be concise."
+    "Focus on diagrams, architecture, data flow, and key visual elements. "
+    "Note any visible URLs, GitHub links, or QR codes. Be concise."
 )
 
 _RETRY_DELAYS = (2, 5, 10)

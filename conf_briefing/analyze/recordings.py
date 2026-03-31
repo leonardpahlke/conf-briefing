@@ -5,12 +5,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from conf_briefing.analyze.llm import query_llm_json
+from conf_briefing.analyze.schemas import SynthesisResult, TalkAnalysis
 from conf_briefing.config import Config
 from conf_briefing.console import console, progress_bar, tag
 
 SYSTEM_PROMPT = """\
-You are a conference talk analyst. You extract key insights from talk transcripts. \
-Always respond with valid JSON unless instructed otherwise."""
+You are a conference talk analyst. Extract key insights from transcripts as JSON. \
+Only include information explicitly stated. If a field has no evidence, leave it empty."""
 
 SINGLE_TALK_PROMPT = """\
 Analyze this conference talk transcript.
@@ -22,113 +23,45 @@ Track: {track}
 Transcript:
 {transcript}
 
-Produce a JSON object:
-{{
-  "title": "{title}",
-  "key_takeaways": ["takeaway 1", "takeaway 2", ...],
-  "qa_highlights": ["question/answer 1", ...],
-  "problems_discussed": ["problem 1", ...],
-  "tools_and_projects": ["tool/project 1", ...],
-  "emerging_signals": ["signal 1", ...],
-  "summary": "3-5 sentence summary",
-  "evidence_quality": "production | proof_of_concept | theoretical | vendor_demo",
-  "speaker_perspective": "practitioner | vendor | maintainer | academic",
-  "maturity_assessments": [
-    {{"technology": "name", "maturity": "assess | trial | adopt | hold", "evidence": "brief evidence"}}
-  ],
-  "concrete_metrics": ["40% latency reduction", "5x deployment speed"],
-  "caveats_and_concerns": ["scaling issues above 10k nodes"],
-  "audience_energy": "high | moderate | low"
-}}
-
-Notes:
-- evidence_quality: "production" = real workload data; "proof_of_concept" = demo or prototype; \
-"theoretical" = design/proposal; "vendor_demo" = vendor showing their product.
-- speaker_perspective: judge by content, not job title. Vendors presenting case studies = "practitioner".
-- maturity: "assess" = worth looking at; "trial" = safe to experiment; "adopt" = proven; "hold" = reconsider.
-- concrete_metrics: only include numbers explicitly stated in the talk. Leave empty if none.
-- caveats_and_concerns: limitations, warnings, or open problems the speaker mentioned.
-- audience_energy: based on Q&A depth, applause cues, or engagement signals in transcript."""
+Extract (JSON schema enforced — focus on content quality):
+- title: exact talk title.
+- summary: 3-5 sentences capturing the core message. Include any concrete metrics stated.
+- key_takeaways: most important points an attendee should remember.
+- problems_discussed: technical challenges the speaker addresses.
+- tools_and_projects: technologies, tools, OSS projects mentioned.
+- qa_highlights: notable Q&A exchanges, if present in transcript.
+- evidence_quality: "production" (real workload data), "proof_of_concept" (demo/prototype), \
+"theoretical" (design/proposal), "vendor_demo" (vendor showing product).
+- speaker_perspective: "practitioner" (building/operating), "vendor" (selling), \
+"maintainer" (OSS maintainer), "academic" (researcher). Judge by content, not job title.
+- maturity_assessments: per-technology. "assess" (worth looking at), "trial" (safe to experiment), \
+"adopt" (proven), "hold" (reconsider). Include brief evidence.
+- caveats_and_concerns: limitations, warnings, or open problems mentioned.
+- technology_stance: per-technology sentiment. "enthusiastic" (strong advocacy), \
+"cautious" (mentions risks), "critical" (argues against), "neutral" (informational).
+- relationships: technology relationships explicitly stated, e.g. Cilium replaces kube-proxy.
+- references: URLs, GitHub repos, paper citations from slides or transcript."""
 
 SYNTHESIS_PROMPT = """\
 Synthesize insights across these conference talk analyses.
 
 Conference: "{conference_name}"
-Focus: {focus_topics}
 
 Individual talk analyses:
 {analyses_json}
 
-Produce a JSON object with the following structure. Include all top-level keys even if \
-their arrays are empty.
-
-{{
-  "cross_cutting_themes": [
-    {{
-      "theme": "theme name",
-      "description": "how this theme appears across talks",
-      "supporting_talks": ["talk title 1", ...]
-    }}
-  ],
-  "emerging_technologies": [
-    {{
-      "technology": "name",
-      "mentions": <count>,
-      "context": "how it was discussed"
-    }}
-  ],
-  "common_problems": ["problem 1", ...],
-  "narrative": "4-6 paragraph markdown synthesis of key insights across all talks.",
-  "tensions": [
-    {{
-      "topic": "sidecar vs sidecarless",
-      "side_a": {{"position": "...", "supporting_talks": ["..."]}},
-      "side_b": {{"position": "...", "supporting_talks": ["..."]}},
-      "severity": "fundamental | significant | minor",
-      "implication": "what this means for practitioners"
-    }}
-  ],
-  "maturity_landscape": [
-    {{
-      "technology": "name",
-      "ring": "assess | trial | adopt | hold",
-      "evidence_quality": "anecdotal | case_study | benchmarked | production_proven",
-      "supporting_talks": ["..."],
-      "rationale": "why this placement"
-    }}
-  ],
-  "stakeholder_map": [
-    {{
-      "company": "name",
-      "role": "vendor | end_user | maintainer | cloud_provider",
-      "pushing": ["topics they promote"],
-      "talk_count": 3,
-      "notable_claims": ["claims worth scrutinizing"]
-    }}
-  ],
-  "quiet_signals": [
-    {{"signal": "...", "source_talk": "...", "why_notable": "..."}}
-  ],
-  "absent_topics": [
-    {{"topic": "...", "expected_because": "...", "possible_reason": "..."}}
-  ],
-  "recommended_actions": [
-    {{
-      "action": "...",
-      "category": "evaluate | watch | talk_to | adopt | avoid",
-      "urgency": "immediate | next_quarter | long_term",
-      "supporting_evidence": "..."
-    }}
-  ]
-}}
-
-Guidelines:
-- tensions: look for talks that contradict each other or present opposing approaches.
-- maturity_landscape: aggregate maturity_assessments from individual talks. One entry per technology.
-- stakeholder_map: group by company. Judge role by content, not branding.
-- quiet_signals: things mentioned once that could be important. Unexpected topics.
-- absent_topics: topics you'd expect at this conference but nobody discussed.
-- recommended_actions: concrete next steps for an attendee. Be specific."""
+Produce (JSON schema enforced — focus on content quality):
+- narrative: 4-6 paragraph markdown overview of key insights across all talks.
+- cross_cutting_themes: themes appearing across multiple talks, with supporting talk titles.
+- emerging_technologies: technologies mentioned across talks, with mention count and context.
+- common_problems: shared challenges across talks.
+- tensions: talks that contradict each other or present opposing approaches. \
+Include both sides, severity (fundamental/significant/minor), and practitioner implications.
+- maturity_landscape: aggregate maturity assessments from individual talks. \
+One entry per technology. Include evidence quality and rationale.
+- recommended_actions: concrete next steps for an attendee. Be specific and actionable.
+- technology_relationships: aggregate from individual talks. \
+Merge duplicates, list supporting talks."""
 
 
 def analyze_single_talk(config: Config, session: dict) -> dict | None:
@@ -137,10 +70,16 @@ def analyze_single_talk(config: Config, session: dict) -> dict | None:
     if not transcript or len(transcript) < 100:
         return None
 
-    # Append slide content if available
-    slide_text = session.get("slide_text", "")
-    if slide_text:
-        transcript = transcript + f"\n\n[SLIDE CONTENT]\n{slide_text}"
+    # Prefer aligned slide-transcript content, fall back to flat slide text
+    slide_content = session.get("slide_aligned", "") or session.get("slide_text", "")
+    if slide_content:
+        label = "SLIDE-ALIGNED CONTENT" if session.get("slide_aligned") else "SLIDE CONTENT"
+        transcript = transcript + f"\n\n[{label}]\n{slide_content}"
+
+    # Append slide references if available
+    refs = session.get("slide_references", [])
+    if refs:
+        transcript = transcript + "\n\n[SLIDE REFERENCES]\n" + "\n".join(refs)
 
     speakers = (
         ", ".join(
@@ -157,35 +96,10 @@ def analyze_single_talk(config: Config, session: dict) -> dict | None:
         transcript=transcript[:15000],  # Cap at ~15K chars to stay within context
     )
 
-    result = query_llm_json(config, SYSTEM_PROMPT, prompt, max_tokens=6144)
-    return _normalize_talk_analysis(result) if isinstance(result, dict) else result
-
-
-def _normalize_talk_analysis(talk: dict) -> dict:
-    """Fill missing optional fields with safe defaults."""
-    defaults = {
-        "key_takeaways": [],
-        "qa_highlights": [],
-        "problems_discussed": [],
-        "tools_and_projects": [],
-        "emerging_signals": [],
-        "summary": "",
-        "evidence_quality": "theoretical",
-        "speaker_perspective": "practitioner",
-        "maturity_assessments": [],
-        "concrete_metrics": [],
-        "caveats_and_concerns": [],
-        "audience_energy": "moderate",
-    }
-    for key, default in defaults.items():
-        if key not in talk:
-            talk[key] = default
-    # Normalize maturity_assessments entries
-    for entry in talk.get("maturity_assessments", []):
-        entry.setdefault("technology", "")
-        entry.setdefault("maturity", "assess")
-        entry.setdefault("evidence", "")
-    return talk
+    result = query_llm_json(
+        config, SYSTEM_PROMPT, prompt, max_tokens=6144, schema=TalkAnalysis
+    )
+    return result
 
 
 def _condense_for_synthesis(analyses: list[dict]) -> list[dict]:
@@ -199,13 +113,13 @@ def _condense_for_synthesis(analyses: list[dict]) -> list[dict]:
         "summary",
         "key_takeaways",
         "tools_and_projects",
-        "emerging_signals",
         "problems_discussed",
         "evidence_quality",
         "speaker_perspective",
         "maturity_assessments",
-        "concrete_metrics",
         "caveats_and_concerns",
+        "technology_stance",
+        "relationships",
     ]
     condensed = []
     for talk in analyses:
@@ -214,39 +128,18 @@ def _condense_for_synthesis(analyses: list[dict]) -> list[dict]:
     return condensed
 
 
-def _normalize_synthesis(result: dict) -> dict:
-    """Fill missing optional fields in synthesis output with safe defaults."""
-    defaults = {
-        "cross_cutting_themes": [],
-        "emerging_technologies": [],
-        "common_problems": [],
-        "narrative": "",
-        "tensions": [],
-        "maturity_landscape": [],
-        "stakeholder_map": [],
-        "quiet_signals": [],
-        "absent_topics": [],
-        "recommended_actions": [],
-    }
-    for key, default in defaults.items():
-        if key not in result:
-            result[key] = default
-    return result
-
-
 def synthesize_analyses(config: Config, analyses: list[dict]) -> dict:
     """Synthesize insights across all talk analyses."""
-    focus = ["general industry trends"]
-
     condensed = _condense_for_synthesis(analyses)
     prompt = SYNTHESIS_PROMPT.format(
         conference_name=config.conference.name,
-        focus_topics=", ".join(focus),
         analyses_json=json.dumps(condensed, indent=2, ensure_ascii=False),
     )
 
-    result = query_llm_json(config, SYSTEM_PROMPT, prompt, max_tokens=12288)
-    return _normalize_synthesis(result) if isinstance(result, dict) else result
+    result = query_llm_json(
+        config, SYSTEM_PROMPT, prompt, max_tokens=12288, schema=SynthesisResult
+    )
+    return result
 
 
 def analyze_recordings(config: Config) -> Path:
@@ -303,6 +196,11 @@ def analyze_recordings(config: Config) -> Path:
                         description=f"{tag('analyze')} {title} [red]failed[/red]",
                     )
                     console.print(f"  {tag('analyze')} [red]{title} — {e}[/red]")
+
+    # Apply entity canonicalization
+    from conf_briefing.analyze.entities import canonicalize_analysis
+
+    talk_analyses = [canonicalize_analysis(t) for t in talk_analyses]
 
     # Save individual analyses
     individual_path = data_dir / "analysis_talks.json"

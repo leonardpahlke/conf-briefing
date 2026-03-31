@@ -44,6 +44,7 @@ class ExtractConfig:
     scene_threshold: float = 27.0  # PySceneDetect ContentDetector threshold
     initial_prompt: str = _DEFAULT_INITIAL_PROMPT  # domain-specific terminology for transcription
     vlm_model: str = ""  # empty = skip VLM; e.g. "gemma3:12b"
+    diarize: bool = True  # enable speaker diarization (requires whisperx + HF_TOKEN)
 
 
 @dataclass
@@ -118,7 +119,10 @@ def load_config(path: str | Path) -> Config:
     extract_raw = raw.get("extract", {})
     _warn_unknown(
         extract_raw,
-        {"whisper_model", "device", "compute_type", "scene_threshold", "initial_prompt", "vlm_model"},
+        {
+            "whisper_model", "device", "compute_type", "scene_threshold",
+            "initial_prompt", "vlm_model", "diarize",
+        },
         "extract",
     )
     extract = ExtractConfig(
@@ -128,6 +132,7 @@ def load_config(path: str | Path) -> Config:
         scene_threshold=extract_raw.get("scene_threshold", 27.0),
         initial_prompt=extract_raw.get("initial_prompt", _DEFAULT_INITIAL_PROMPT),
         vlm_model=extract_raw.get("vlm_model", ""),
+        diarize=extract_raw.get("diarize", True),
     )
 
     llm_raw = raw.get("llm", {})

@@ -1,6 +1,7 @@
 """Preflight checks for the extract pipeline."""
 
 import importlib.util
+import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,20 +15,49 @@ class ExtractContext:
     """Resolved extract pipeline settings after auto-detection."""
 
     # Transcription
-    transcribe_backend: str  # "whisper-cpp" or "faster-whisper"
+    transcribe_backend: str  # "whisper-cpp", "faster-whisper", or "whisperx"
     device: str  # "cpu", "cuda", "rocm"
     compute_type: str  # "int8", "float16"
-    whisper_model: str  # model name (faster-whisper) or ggml path
+    whisper_model: str  # model name (faster-whisper/whisperx) or ggml path
     wcpp_binary: str | None  # path to whisper-cpp binary
     wcpp_model_path: str | None  # path to ggml model file
     initial_prompt: str  # domain-specific terminology
+    diarize: bool  # enable speaker diarization (whisperx only)
 
     # OCR
     ocr_backend: str  # "tesseract"
 
 
+def _gpu_sanity_check() -> bool:
+    """Run a small GPU tensor op in a subprocess to verify the GPU actually works.
+
+    Returns True if GPU operations succeed, False if they segfault or error.
+    This catches unsupported GPU architectures (e.g. RDNA4 on ROCm 6.2).
+    """
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import torch; t = torch.zeros(1, device='cuda'); print(float(t))",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    return result.returncode == 0
+
+
 def _resolve_device(config_device: str, config_compute: str) -> tuple[str, str]:
-    """Resolve device and compute_type from config ('auto' -> detect CUDA)."""
+    """Resolve device and compute_type from config ('auto' -> detect GPU).
+
+    Returns (device, compute_type) where device is one of:
+      "cpu"   — no GPU available
+      "cuda"  — NVIDIA CUDA GPU
+      "rocm"  — AMD ROCm GPU (torch.cuda works via HIP, but ctranslate2 does not)
+    """
     device = config_device
     compute_type = config_compute
 
@@ -35,12 +65,33 @@ def _resolve_device(config_device: str, config_compute: str) -> tuple[str, str]:
         try:
             import torch
 
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            if torch.cuda.is_available():
+                # ROCm torch exposes GPUs via torch.cuda but sets torch.version.hip
+                is_rocm = bool(getattr(torch.version, "hip", None))
+                # Verify GPU actually works — catches unsupported architectures
+                # (e.g. RDNA4/gfx1151 on ROCm 6.2 which only supports RDNA3).
+                if _gpu_sanity_check():
+                    device = "rocm" if is_rocm else "cuda"
+                    gpu_name = torch.cuda.get_device_name(0)
+                    console.print(
+                        f"{tag('preflight')} GPU: {gpu_name}"
+                        f" ({'ROCm' if is_rocm else 'CUDA'})"
+                    )
+                else:
+                    gpu_name = torch.cuda.get_device_name(0)
+                    console.print(
+                        f"{tag('preflight')} [yellow]GPU detected ({gpu_name}) "
+                        f"but operations failed — falling back to CPU. "
+                        f"Your GPU may not be supported by this ROCm/CUDA version.[/yellow]"
+                    )
+                    device = "cpu"
+            else:
+                device = "cpu"
         except ImportError:
             device = "cpu"
 
     if compute_type == "auto":
-        compute_type = "float16" if device == "cuda" else "int8"
+        compute_type = "float16" if device in ("cuda", "rocm") else "int8"
 
     return device, compute_type
 
@@ -81,8 +132,35 @@ def _detect_transcription_backend(
 ) -> tuple[str, str, str, str, str | None, str | None]:
     """Auto-detect best transcription backend.
 
+    Priority: whisperx (diarization) > whisper-cpp (ROCm) > faster-whisper.
     Returns (backend, device, compute_type, model, wcpp_binary, wcpp_model_path).
     """
+    # Prefer WhisperX if installed (batched inference, VAD, alignment, diarization).
+    # Diarization gracefully degrades without HF_TOKEN.
+    if importlib.util.find_spec("whisperx") is not None:
+        device, compute_type = _resolve_device(config.extract.device, config.extract.compute_type)
+        hf_token = os.environ.get("HF_TOKEN", "")
+        can_diarize = config.extract.diarize and bool(hf_token)
+        diarize_note = ""
+        if config.extract.diarize and not hf_token:
+            diarize_note = " [yellow](set HF_TOKEN to enable diarization)[/yellow]"
+        elif can_diarize:
+            diarize_note = " with diarization"
+        device_desc = "rocm (ASR on CPU, align/diarize on GPU)" if device == "rocm" \
+            else f"{device} ({compute_type})"
+        console.print(
+            f"{tag('preflight')} Transcription: whisperx on "
+            f"{device_desc}{diarize_note}"
+        )
+        return (
+            "whisperx",
+            device,
+            compute_type,
+            config.extract.whisper_model,
+            None,
+            None,
+        )
+
     wcpp_bin = shutil.which("whisper-cpp")
     if wcpp_bin:
         wcpp_model = _find_wcpp_model(config.extract.whisper_model)
@@ -231,6 +309,63 @@ def _check_vlm_model(config: Config, vlm_model: str) -> None:
         )
 
 
+_PYANNOTE_GATED_MODELS = [
+    "pyannote/speaker-diarization-3.1",
+    "pyannote/segmentation-3.0",
+]
+
+
+def _check_hf_token_and_diarize_access(hf_token: str) -> None:
+    """Verify HF_TOKEN is set, valid, and has access to gated pyannote models."""
+    from huggingface_hub import whoami
+    from huggingface_hub.utils import GatedRepoError, RepositoryNotFoundError
+
+    # 1. Token set?
+    if not hf_token:
+        raise RuntimeError(
+            "HF_TOKEN is not set. Diarization requires a HuggingFace token.\n"
+            "  1. Create a token at https://hf.co/settings/tokens (Read access)\n"
+            "  2. Add HF_TOKEN=hf_... to your .env file"
+        )
+
+    # 2. Token valid?
+    try:
+        user_info = whoami(token=hf_token)
+        username = user_info.get("name", "unknown")
+    except Exception as exc:
+        raise RuntimeError(
+            f"HF_TOKEN is invalid: {exc}\n"
+            "  Create a new token at https://hf.co/settings/tokens"
+        ) from exc
+
+    # 3. Gated model access?
+    from huggingface_hub import auth_check
+
+    for repo_id in _PYANNOTE_GATED_MODELS:
+        try:
+            auth_check(repo_id, token=hf_token)
+        except GatedRepoError as exc:
+            raise RuntimeError(
+                f"HF user '{username}' has not accepted the license for '{repo_id}'.\n"
+                f"  Visit https://hf.co/{repo_id} and click 'Agree and access repository'."
+            ) from exc
+        except RepositoryNotFoundError as exc:
+            raise RuntimeError(
+                f"Model '{repo_id}' not found. Check your HF_TOKEN permissions.\n"
+                "  The token needs: Read access to contents of all public gated repos."
+            ) from exc
+        except Exception as exc:
+            console.print(
+                f"{tag('preflight')} [yellow]Could not verify access to "
+                f"'{repo_id}': {exc}[/yellow]"
+            )
+
+    console.print(
+        f"{tag('preflight')} HF token valid (user: {username}), "
+        f"pyannote model access OK."
+    )
+
+
 def check_extract_ready(config: Config) -> ExtractContext:
     """Preflight checks for extract pipeline. Returns resolved ExtractContext."""
     console.print(f"{tag('preflight')} Running preflight checks...")
@@ -258,6 +393,15 @@ def check_extract_ready(config: Config) -> ExtractContext:
     if vlm_model:
         _check_vlm_model(config, vlm_model)
 
+    # Diarization checks
+    if config.extract.diarize and backend != "whisperx":
+        console.print(
+            f"{tag('preflight')} [yellow]Diarization requires whisperx. "
+            f"Install with: just pull-models <event> amd|nvidia[/yellow]"
+        )
+    elif config.extract.diarize and backend == "whisperx":
+        _check_hf_token_and_diarize_access(os.environ.get("HF_TOKEN", ""))
+
     console.print(f"{tag('preflight')} All checks passed.")
     return ExtractContext(
         transcribe_backend=backend,
@@ -267,5 +411,6 @@ def check_extract_ready(config: Config) -> ExtractContext:
         wcpp_binary=wcpp_bin,
         wcpp_model_path=wcpp_model,
         initial_prompt=config.extract.initial_prompt,
+        diarize=config.extract.diarize,
         ocr_backend="tesseract",
     )

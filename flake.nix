@@ -37,10 +37,15 @@
             pkgs.libx11
             pkgs.libGL              # needed by opencv (libGL.so.1)
             pkgs.glib               # needed by opencv (libgthread-2.0.so.0)
+            pkgs.zstd.out           # needed by ROCm torch (libzstd.so.1)
           ];
 
           shellHook = ''
-            uv sync --extra scrape --extra extract --quiet
+            # Skip uv sync when ROCm torch is installed — sync would overwrite
+            # pip-installed packages (whisperx, huggingface-hub, etc.)
+            if [ ! -f .rocm-torch ]; then
+              uv sync --extra scrape --extra extract --quiet
+            fi
 
             echo "--- Conf-Briefing Dev Shell ---"
             echo ""
