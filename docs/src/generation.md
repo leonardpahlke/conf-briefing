@@ -67,9 +67,36 @@ The extract step is followed automatically by cleaning and LLM analysis:
 - **Q&A extraction** — audience questions and answers given.
 - **Problem identification** — pain points and challenges discussed.
 - **Emerging technology scan** — new tools, projects, and ideas mentioned.
+- **Maturity assessment** — per-talk technology maturity ratings (assess/trial/adopt/hold) with evidence.
+- **Speaker perspective** — whether each speaker is a practitioner, vendor, maintainer, or academic.
+- **Caveats and concerns** — limitations and warnings mentioned.
 - **Cross-talk synthesis** — comparing perspectives across talks on the same topic.
 
-**Output:** Markdown report with per-talk summaries, aggregated Q&A highlights, emerging signals, and cross-talk comparisons.
+The synthesis step additionally produces:
+
+- **Tensions** — contradictions and unresolved debates between talks.
+- **Maturity landscape** — aggregated technology maturity ratings across all talks.
+- **Stakeholder map** — company roles, agendas, and notable claims.
+- **Quiet signals** — single mentions worth watching.
+- **Absent topics** — expected topics that nobody discussed.
+- **Recommended actions** — concrete next steps categorized by urgency.
+
+**Output:** Markdown reports including an 8-layer intelligence briefing, per-talk summaries, aggregated Q&A highlights, emerging signals, and cross-talk comparisons.
+
+## Intelligence Briefing
+
+The primary output is a unified intelligence briefing (`briefing_report.md`) structured around 8 information layers:
+
+1. **Landscape** — territory, players, tracks, volume (from agenda analysis)
+2. **Narrative** — big themes, dominant conversations (from recording synthesis)
+3. **Movement** — what changed since last time (*deferred — needs multi-conference data*)
+4. **Maturity** — hype vs production, aspirational vs concrete (from maturity assessments)
+5. **Tension** — contradictions, unresolved debates (from cross-talk comparison)
+6. **Stakeholders** — vendor vs practitioner, company agendas (from stakeholder map)
+7. **Signals** — quiet mentions, unexpected topics, absent topics (from signal extraction)
+8. **Actions** — evaluate, watch, follow up, reconsider (from recommended actions)
+
+Every section renders meaningfully with agenda-only, recordings-only, or both data sources. The existing detail reports (agenda, ranking, recording) remain as supplementary views.
 
 ## RAG Query
 
@@ -92,16 +119,19 @@ This loads all analysis data (transcripts, abstracts, talk summaries, takeaways,
 
 **Chunk types indexed:**
 
-| Type                   | Source                 | Description                              |
-|------------------------|------------------------|------------------------------------------|
-| `transcript_segment`   | `transcripts/*.json`   | Sliding window ~500 tokens, 100 overlap  |
-| `talk_abstract`        | `schedule_clean.json`  | One chunk per talk abstract              |
-| `talk_summary`         | `analysis_talks.json`  | One chunk per talk summary               |
-| `talk_takeaways`       | `analysis_talks.json`  | Key takeaways per talk                   |
-| `talk_qa`              | `analysis_talks.json`  | Q&A highlights per talk                  |
-| `talk_signals`         | `analysis_talks.json`  | Problems, tools, and signals combined    |
-| `cluster_summary`      | `analysis_ranking.json`| One chunk per ranked cluster             |
-| `conference_narrative` | `analysis_agenda.json` | Conference-level narratives and themes   |
+| Type                   | Source                      | Description                              |
+|------------------------|-----------------------------|------------------------------------------|
+| `transcript_segment`   | `transcripts/*.json`        | Sliding window ~500 tokens, 100 overlap  |
+| `talk_abstract`        | `schedule_clean.json`       | One chunk per talk abstract              |
+| `talk_summary`         | `analysis_talks.json`       | One chunk per talk summary               |
+| `talk_takeaways`       | `analysis_talks.json`       | Key takeaways per talk                   |
+| `talk_qa`              | `analysis_talks.json`       | Q&A highlights per talk                  |
+| `talk_signals`         | `analysis_talks.json`       | Problems, tools, and signals combined    |
+| `cluster_summary`      | `analysis_ranking.json`     | One chunk per ranked cluster             |
+| `conference_narrative` | `analysis_agenda.json`      | Conference-level narratives and themes   |
+| `maturity_assessment`  | `analysis_recordings.json`  | One chunk per technology maturity rating  |
+| `tension`              | `analysis_recordings.json`  | One chunk per debate/contradiction        |
+| `recommended_action`   | `analysis_recordings.json`  | One chunk per recommended action          |
 
 ### Asking Questions
 

@@ -1,0 +1,313 @@
+# Intelligence Briefing: {{ conference_name }}
+
+{% if recordings.get("narrative") %}
+## Executive Summary
+
+{{ recordings.get("narrative", "") }}
+{% elif agenda.get("narrative") %}
+## Executive Summary
+
+{{ agenda.get("narrative", "") }}
+{% endif %}
+
+---
+
+## 1. Landscape
+
+{% if agenda %}
+{% if agenda.get("top_keywords") %}
+### Key Topics
+
+{% for kw in agenda.get("top_keywords", [])[:20] -%}
+- {{ kw }}
+{% endfor %}
+{% endif %}
+
+{% if agenda.get("clusters") %}
+### Topic Clusters
+
+{% for cluster in agenda.get("clusters", []) %}
+**{{ cluster.name }}** — {{ cluster.description }}
+{% if cluster.companies %} Companies: {{ cluster.companies | join(", ") }}{% endif %}
+{% if cluster.talks %} ({{ cluster.talks | length }} talks){% endif %}
+
+{% endfor %}
+{% endif %}
+
+{% if agenda.get("company_presence") %}
+### Company Presence
+
+![Company Presence](./images/company_presence.svg)
+
+| Company | Talks |
+|---------|-------|
+{% for company, count in agenda.get("company_presence", {}).items() -%}
+| {{ company }} | {{ count }} |
+{% endfor %}
+{% endif %}
+
+{% if agenda.get("track_distribution") %}
+### Track Distribution
+
+![Track Distribution](./images/track_distribution.svg)
+
+| Track | Sessions |
+|-------|----------|
+{% for track, count in agenda.get("track_distribution", {}).items() -%}
+| {{ track }} | {{ count }} |
+{% endfor %}
+{% endif %}
+{% else %}
+*Landscape data not available — run agenda analysis first.*
+{% endif %}
+
+---
+
+## 2. Narrative
+
+{% if recordings.get("cross_cutting_themes") %}
+### Cross-Cutting Themes
+
+{% for theme in recordings.get("cross_cutting_themes", []) %}
+#### {{ theme.theme }}
+
+{{ theme.description }}
+
+**Supporting talks:** {{ theme.supporting_talks | join(", ") }}
+
+{% endfor %}
+{% endif %}
+
+{% if recordings.get("emerging_technologies") %}
+### Emerging Technologies
+
+| Technology | Mentions | Context |
+|------------|----------|---------|
+{% for tech in recordings.get("emerging_technologies", []) -%}
+| {{ tech.technology }} | {{ tech.mentions }} | {{ tech.context }} |
+{% endfor %}
+{% endif %}
+
+{% if recordings.get("common_problems") %}
+### Common Problems
+
+{% for problem in recordings.get("common_problems", []) -%}
+- {{ problem }}
+{% endfor %}
+{% endif %}
+
+{% if not recordings.get("cross_cutting_themes") and not recordings.get("emerging_technologies") %}
+*Narrative data not available — run recording analysis first.*
+{% endif %}
+
+---
+
+## 3. Movement
+
+*Deferred — requires multi-conference data to track changes over time. This section will compare findings against previous editions of the same conference.*
+
+---
+
+## 4. Maturity
+
+{% if recordings.get("maturity_landscape") %}
+### Technology Maturity Landscape
+
+![Maturity Radar](./images/maturity_radar.svg)
+
+| Technology | Ring | Evidence Quality | Rationale |
+|------------|------|-----------------|-----------|
+{% for item in recordings.get("maturity_landscape", []) -%}
+| {{ item.technology }} | {{ item.ring }} | {{ item.evidence_quality }} | {{ item.rationale }} |
+{% endfor %}
+
+{% if recordings.get("maturity_landscape") | length > 0 %}
+**Ring definitions:** *Assess* = worth looking at; *Trial* = safe to experiment in non-critical paths; *Adopt* = proven, recommended for production; *Hold* = proceed with caution or reconsider.
+{% endif %}
+{% endif %}
+
+{% if talks %}
+### Per-Talk Maturity Signals
+
+{% for talk in talks %}
+{% if talk.get("maturity_assessments") %}
+**{{ talk.title }}** ({{ talk.get("evidence_quality", "unknown") }} / {{ talk.get("speaker_perspective", "unknown") }})
+{% for ma in talk.get("maturity_assessments", []) -%}
+- {{ ma.technology }}: **{{ ma.maturity }}** — {{ ma.evidence }}
+{% endfor %}
+
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if not recordings.get("maturity_landscape") and not talks %}
+*Maturity data not available — run recording analysis first.*
+{% endif %}
+
+---
+
+## 5. Tension
+
+{% if recordings.get("tensions") %}
+### Debates & Contradictions
+
+{% for tension in recordings.get("tensions", []) %}
+#### {{ tension.topic }}
+
+| | Position | Supporting Talks |
+|---|---------|-----------------|
+| **Side A** | {{ tension.side_a.position }} | {{ tension.side_a.supporting_talks | join(", ") }} |
+| **Side B** | {{ tension.side_b.position }} | {{ tension.side_b.supporting_talks | join(", ") }} |
+
+**Severity:** {{ tension.severity }} | **Implication:** {{ tension.implication }}
+
+{% endfor %}
+{% endif %}
+
+{% if talks %}
+### Caveats & Concerns from Individual Talks
+
+{% for talk in talks %}
+{% if talk.get("caveats_and_concerns") %}
+- **{{ talk.title }}**: {{ talk.caveats_and_concerns | join("; ") }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if not recordings.get("tensions") %}
+*Tension data not available — run recording analysis first.*
+{% endif %}
+
+---
+
+## 6. Stakeholders
+
+{% if recordings.get("stakeholder_map") %}
+### Stakeholder Map
+
+![Stakeholder Breakdown](./images/stakeholder_breakdown.svg)
+
+{% for s in recordings.get("stakeholder_map", []) %}
+**{{ s.company }}** ({{ s.role }}, {{ s.talk_count }} talks)
+{% if s.pushing %}- Pushing: {{ s.pushing | join(", ") }}{% endif %}
+{% if s.notable_claims %}- Notable claims: {{ s.notable_claims | join("; ") }}{% endif %}
+
+{% endfor %}
+{% endif %}
+
+{% if talks %}
+### Speaker Perspectives
+
+| Talk | Perspective | Evidence Quality |
+|------|------------|-----------------|
+{% for talk in talks -%}
+| {{ talk.title }} | {{ talk.get("speaker_perspective", "—") }} | {{ talk.get("evidence_quality", "—") }} |
+{% endfor %}
+{% endif %}
+
+{% if not recordings.get("stakeholder_map") and not talks %}
+*Stakeholder data not available — run recording analysis first.*
+{% endif %}
+
+---
+
+## 7. Signals
+
+{% if recordings.get("quiet_signals") %}
+### Quiet Signals
+
+{% for sig in recordings.get("quiet_signals", []) %}
+- **{{ sig.signal }}** (from: {{ sig.source_talk }}) — {{ sig.why_notable }}
+{% endfor %}
+{% endif %}
+
+{% if recordings.get("absent_topics") %}
+### Absent Topics
+
+| Topic | Expected Because | Possible Reason |
+|-------|-----------------|-----------------|
+{% for item in recordings.get("absent_topics", []) -%}
+| {{ item.topic }} | {{ item.expected_because }} | {{ item.possible_reason }} |
+{% endfor %}
+{% endif %}
+
+{% if recordings.get("emerging_technologies") %}
+### Emerging Technology Signals
+
+{% for tech in recordings.get("emerging_technologies", []) %}
+- **{{ tech.technology }}** ({{ tech.mentions }} mentions) — {{ tech.context }}
+{% endfor %}
+{% endif %}
+
+{% if not recordings.get("quiet_signals") and not recordings.get("absent_topics") %}
+*Signal data not available — run recording analysis first.*
+{% endif %}
+
+---
+
+## 8. Actions
+
+{% if recordings.get("recommended_actions") %}
+### Recommended Actions
+
+{% for action in recordings.get("recommended_actions", []) %}
+- **[{{ action.category | upper }}]** {{ action.action }}
+  - Urgency: {{ action.urgency }} | Evidence: {{ action.supporting_evidence }}
+{% endfor %}
+{% endif %}
+
+{% if has_ranking and ranking %}
+### Priority Clusters
+
+| Rank | Cluster | Relevance |
+|------|---------|-----------|
+{% for cluster in ranking[:10] -%}
+| {{ cluster.rank }} | {{ cluster.name }} | {{ "%.0f" | format(cluster.relevance_score * 100) }}% |
+{% endfor %}
+{% endif %}
+
+{% if not recordings.get("recommended_actions") and not ranking %}
+*Action data not available — run full analysis pipeline first.*
+{% endif %}
+
+---
+
+## Appendix: Individual Talk Summaries
+
+{% if talks %}
+{% for talk in talks %}
+### {{ talk.title }}
+
+{{ talk.summary }}
+
+{% if talk.key_takeaways %}
+**Key Takeaways:**
+{% for takeaway in talk.key_takeaways -%}
+- {{ takeaway }}
+{% endfor %}
+{% endif %}
+
+{% if talk.concrete_metrics %}
+**Concrete Metrics:** {{ talk.concrete_metrics | join(", ") }}
+{% endif %}
+
+{% if talk.tools_and_projects %}
+**Tools & Projects:** {{ talk.tools_and_projects | join(", ") }}
+{% endif %}
+
+{% if talk.qa_highlights %}
+<details>
+<summary>Q&A Highlights</summary>
+
+{% for qa in talk.qa_highlights -%}
+- {{ qa }}
+{% endfor %}
+</details>
+{% endif %}
+
+---
+
+{% endfor %}
+{% else %}
+*No individual talk analyses available.*
+{% endif %}

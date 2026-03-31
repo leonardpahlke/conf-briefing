@@ -119,6 +119,98 @@ def chart_cluster_relevance(ranking: list[dict], images_dir: Path) -> Path | Non
     return out
 
 
+def chart_maturity_radar(recordings: dict, images_dir: Path) -> Path | None:
+    """Dot-strip chart: technologies on Y, maturity rings on X, color = evidence quality."""
+    items = recordings.get("maturity_landscape", [])
+    if not items:
+        return None
+
+    ring_order = {"assess": 0, "trial": 1, "adopt": 2, "hold": 3}
+    evidence_colors = {
+        "anecdotal": "#BAB0AC",
+        "case_study": "#4C78A8",
+        "benchmarked": "#F58518",
+        "production_proven": "#54A24B",
+    }
+
+    techs = [it["technology"] for it in items]
+    x_vals = [ring_order.get(it.get("ring", "assess"), 0) for it in items]
+    colors = [evidence_colors.get(it.get("evidence_quality", "anecdotal"), "#BAB0AC") for it in items]
+    hover = [
+        f"{it['technology']}<br>Ring: {it.get('ring', 'assess')}<br>"
+        f"Evidence: {it.get('evidence_quality', 'anecdotal')}<br>"
+        f"Rationale: {it.get('rationale', '')[:80]}"
+        for it in items
+    ]
+
+    fig = go.Figure(
+        data=[
+            go.Scatter(
+                x=x_vals,
+                y=techs,
+                mode="markers",
+                marker=dict(size=14, color=colors, line=dict(width=1, color="#333")),
+                text=hover,
+                hoverinfo="text",
+            )
+        ],
+        layout=go.Layout(
+            title="Technology Maturity Landscape",
+            xaxis=dict(
+                tickvals=[0, 1, 2, 3],
+                ticktext=["Assess", "Trial", "Adopt", "Hold"],
+                title="Maturity Ring",
+            ),
+            yaxis=dict(autorange="reversed"),
+            margin=dict(l=200),
+            height=max(400, len(techs) * 35),
+            template="plotly_white",
+        ),
+    )
+
+    out = images_dir / "maturity_radar.svg"
+    fig.write_image(str(out), format="svg")
+    console.print(f"{tag('visualize')} Generated {out}")
+    return out
+
+
+def chart_stakeholder_breakdown(recordings: dict, images_dir: Path) -> Path | None:
+    """Horizontal bar chart: companies by talk count, color = role type."""
+    items = recordings.get("stakeholder_map", [])
+    if not items:
+        return None
+
+    role_colors = {
+        "vendor": "#E45756",
+        "end_user": "#4C78A8",
+        "maintainer": "#54A24B",
+        "cloud_provider": "#F58518",
+    }
+
+    # Sort by talk_count descending, take top 15
+    sorted_items = sorted(items, key=lambda x: x.get("talk_count", 0), reverse=True)[:15]
+    labels = [it["company"] for it in sorted_items]
+    values = [it.get("talk_count", 0) for it in sorted_items]
+    colors = [role_colors.get(it.get("role", "vendor"), "#BAB0AC") for it in sorted_items]
+
+    fig = go.Figure(
+        data=[go.Bar(x=values, y=labels, orientation="h", marker_color=colors)],
+        layout=go.Layout(
+            title="Stakeholder Breakdown (by Talk Count)",
+            xaxis_title="Number of Talks",
+            yaxis=dict(autorange="reversed"),
+            margin=dict(l=200),
+            height=max(400, len(labels) * 35),
+            template="plotly_white",
+        ),
+    )
+
+    out = images_dir / "stakeholder_breakdown.svg"
+    fig.write_image(str(out), format="svg")
+    console.print(f"{tag('visualize')} Generated {out}")
+    return out
+
+
 def generate_charts(config: Config) -> list[Path]:
     """Generate all charts from analysis data."""
     data_dir = config.data_dir
@@ -140,6 +232,15 @@ def generate_charts(config: Config) -> list[Path]:
         ranking = json.loads(ranking_path.read_text())
         if isinstance(ranking, list):
             result = chart_cluster_relevance(ranking, images_dir)
+            if result:
+                generated.append(result)
+
+    # Recording-based charts (maturity + stakeholders)
+    recordings_path = data_dir / "analysis_recordings.json"
+    if recordings_path.exists():
+        recordings = json.loads(recordings_path.read_text())
+        for chart_fn in [chart_maturity_radar, chart_stakeholder_breakdown]:
+            result = chart_fn(recordings, images_dir)
             if result:
                 generated.append(result)
 

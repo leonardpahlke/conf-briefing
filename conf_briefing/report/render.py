@@ -34,17 +34,26 @@ def render_reports(config: Config) -> list[Path]:
     )
 
     # Load all analysis data
+    agenda = _load_json(data_dir / "analysis_agenda.json") or {}
+    ranking = _load_json(data_dir / "analysis_ranking.json") or []
+    recordings = _load_json(data_dir / "analysis_recordings.json") or {}
+    talks = _load_json(data_dir / "analysis_talks.json") or []
+
     context = {
         "conference_name": config.conference.name,
         "schedule": _load_json(data_dir / "schedule_clean.json") or [],
-        "agenda": _load_json(data_dir / "analysis_agenda.json") or {},
-        "ranking": _load_json(data_dir / "analysis_ranking.json") or [],
-        "recordings": _load_json(data_dir / "analysis_recordings.json") or {},
-        "talks": _load_json(data_dir / "analysis_talks.json") or [],
+        "agenda": agenda,
+        "ranking": ranking,
+        "recordings": recordings,
+        "talks": talks,
+        "has_agenda": bool(agenda),
+        "has_recordings": bool(recordings.get("narrative") or recordings.get("cross_cutting_themes")),
+        "has_ranking": bool(ranking),
     }
 
     rendered = []
     template_map = {
+        "briefing_report.md.j2": "briefing_report.md",
         "agenda_report.md.j2": "agenda_report.md",
         "ranking_report.md.j2": "ranking_report.md",
         "recording_report.md.j2": "recording_report.md",

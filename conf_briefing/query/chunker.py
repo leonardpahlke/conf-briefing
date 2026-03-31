@@ -366,6 +366,105 @@ def _load_slide_chunks(config: Config, sessions: list[dict]) -> list[Chunk]:
     return chunks
 
 
+def _load_maturity_chunks(recordings: dict) -> list[Chunk]:
+    """Create one chunk per technology in maturity_landscape."""
+    chunks = []
+    for i, item in enumerate(recordings.get("maturity_landscape", [])):
+        tech = item.get("technology", "")
+        if not tech:
+            continue
+        parts = [
+            f"Technology Maturity: {tech}",
+            f"Ring: {item.get('ring', 'assess')}",
+            f"Evidence quality: {item.get('evidence_quality', 'anecdotal')}",
+        ]
+        rationale = item.get("rationale", "")
+        if rationale:
+            parts.append(f"Rationale: {rationale}")
+        talks = item.get("supporting_talks", [])
+        if talks:
+            parts.append(f"Supporting talks: {', '.join(talks)}")
+        chunks.append(
+            Chunk(
+                id=f"maturity_assessment:{_safe_id(tech)}:{i}",
+                text="\n\n".join(parts),
+                chunk_type="maturity_assessment",
+                metadata={
+                    "source_file": "analysis_recordings.json",
+                    "talk_title": tech,
+                    "ring": item.get("ring", "assess"),
+                },
+            )
+        )
+    return chunks
+
+
+def _load_tension_chunks(recordings: dict) -> list[Chunk]:
+    """Create one chunk per debate in tensions."""
+    chunks = []
+    for i, tension in enumerate(recordings.get("tensions", [])):
+        topic = tension.get("topic", "")
+        if not topic:
+            continue
+        side_a = tension.get("side_a", {})
+        side_b = tension.get("side_b", {})
+        parts = [
+            f"Tension: {topic}",
+            f"Side A: {side_a.get('position', '')}",
+            f"Supporting talks (A): {', '.join(side_a.get('supporting_talks', []))}",
+            f"Side B: {side_b.get('position', '')}",
+            f"Supporting talks (B): {', '.join(side_b.get('supporting_talks', []))}",
+            f"Severity: {tension.get('severity', 'minor')}",
+        ]
+        implication = tension.get("implication", "")
+        if implication:
+            parts.append(f"Implication: {implication}")
+        chunks.append(
+            Chunk(
+                id=f"tension:{_safe_id(topic)}:{i}",
+                text="\n\n".join(parts),
+                chunk_type="tension",
+                metadata={
+                    "source_file": "analysis_recordings.json",
+                    "talk_title": topic,
+                    "severity": tension.get("severity", "minor"),
+                },
+            )
+        )
+    return chunks
+
+
+def _load_action_chunks(recordings: dict) -> list[Chunk]:
+    """Create one chunk per recommended action."""
+    chunks = []
+    for i, action in enumerate(recordings.get("recommended_actions", [])):
+        text = action.get("action", "")
+        if not text:
+            continue
+        parts = [
+            f"Recommended Action: {text}",
+            f"Category: {action.get('category', 'watch')}",
+            f"Urgency: {action.get('urgency', 'long_term')}",
+        ]
+        evidence = action.get("supporting_evidence", "")
+        if evidence:
+            parts.append(f"Evidence: {evidence}")
+        chunks.append(
+            Chunk(
+                id=f"recommended_action:{_safe_id(text)}:{i}",
+                text="\n\n".join(parts),
+                chunk_type="recommended_action",
+                metadata={
+                    "source_file": "analysis_recordings.json",
+                    "talk_title": text[:80],
+                    "category": action.get("category", "watch"),
+                    "urgency": action.get("urgency", "long_term"),
+                },
+            )
+        )
+    return chunks
+
+
 def load_chunks(config: Config) -> list[Chunk]:
     """Load all data sources and produce chunks for indexing."""
     data_dir = config.data_dir
@@ -412,6 +511,11 @@ def load_chunks(config: Config) -> list[Chunk]:
         recordings = json.loads(recordings_path.read_text())
 
     chunks.extend(_load_narrative_chunks(agenda, recordings))
+
+    # Maturity, tension, and action chunks from synthesis
+    chunks.extend(_load_maturity_chunks(recordings))
+    chunks.extend(_load_tension_chunks(recordings))
+    chunks.extend(_load_action_chunks(recordings))
 
     # Ensure every chunk has chunk_type in metadata for ChromaDB filtering
     for c in chunks:
