@@ -17,14 +17,17 @@ def cmd_collect(args):
 
 def cmd_extract(args):
     """Run the extract pipeline step (transcribe + slides + clean + analyze)."""
-    from conf_briefing.analyze import run_analyze
     from conf_briefing.clean import run_clean
     from conf_briefing.extract import run_extract
 
     config = load_config(args.config)
     run_extract(config)
     run_clean(config)
-    run_analyze(config)
+
+    if not args.skip_analyze:
+        from conf_briefing.analyze import run_analyze
+
+        run_analyze(config)
 
 
 def cmd_clean(args):
@@ -83,6 +86,70 @@ def cmd_ask(args):
     )
 
 
+def _pull_with_progress(client, model: str) -> None:
+    """Pull an Ollama model with a Rich progress bar."""
+    from rich.progress import (
+        BarColumn,
+        DownloadColumn,
+        Progress,
+        SpinnerColumn,
+        TextColumn,
+        TransferSpeedColumn,
+    )
+
+    from conf_briefing.console import console
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        DownloadColumn(),
+        TransferSpeedColumn(),
+        console=console,
+    ) as progress:
+        tasks: dict[str, int] = {}  # digest -> task_id
+
+        for event in client.pull(model, stream=True):
+            status = event.status or ""
+            digest = event.digest or ""
+            total = event.total or 0
+            completed = event.completed or 0
+
+            if digest and total:
+                if digest not in tasks:
+                    # Use short digest as label
+                    short = digest.rsplit(":", 1)[-1][:12] if ":" in digest else digest[:12]
+                    tid = progress.add_task(f"{status} {short}", total=total)
+                    tasks[digest] = tid
+                progress.update(tasks[digest], completed=completed, total=total)
+            elif not digest:
+                # Status-only events (e.g. "verifying sha256 digest")
+                progress.console.print(f"  [dim]{status}[/dim]")
+
+
+def cmd_pull_models(args):
+    """Pull required Ollama models."""
+    import ollama
+
+    from conf_briefing.console import console, tag
+
+    config = load_config(args.config)
+    models = [config.llm.model, config.query.embedding_model]
+    if config.extract.vlm_model:
+        models.append(config.extract.vlm_model)
+    base_url = config.llm.ollama_base_url
+
+    client = ollama.Client(host=base_url)
+    for model in models:
+        console.print(f"{tag('ollama')} Pulling [bold]{model}[/bold] …")
+        try:
+            _pull_with_progress(client, model)
+            console.print(f"{tag('ollama')} [green]✓[/green] {model} ready")
+        except Exception as e:
+            err_console.print(f"{tag('ollama')} [red]✗[/red] Failed to pull {model}: {e}")
+            sys.exit(1)
+
+
 def cmd_run(args):
     """Run the full pipeline."""
     config = load_config(args.config)
@@ -117,12 +184,19 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("collect", help="Fetch schedule and transcripts")
-    subparsers.add_parser("extract", help="Extract AI data (transcribe, slides, clean, analyze)")
+
+    extract_parser = subparsers.add_parser("extract", help="Extract AI data (transcribe, slides, clean, analyze)")
+    extract_parser.add_argument(
+        "--skip-analyze",
+        action="store_true",
+        help="Skip the LLM analysis step (useful when Ollama is unavailable)",
+    )
     subparsers.add_parser("clean", help="Normalize and structure data")
     subparsers.add_parser("analyze", help="Run LLM analysis")
     subparsers.add_parser("visualize", help="Generate charts and diagrams")
     subparsers.add_parser("report", help="Render report templates")
     subparsers.add_parser("run", help="Run the full pipeline")
+    subparsers.add_parser("pull-models", help="Pull required Ollama models")
 
     subparsers.add_parser("index", help="Build vector index for RAG queries")
 
@@ -163,13 +237,14 @@ def main():
         "visualize": cmd_visualize,
         "report": cmd_report,
         "run": cmd_run,
+        "pull-models": cmd_pull_models,
         "index": cmd_index,
         "ask": cmd_ask,
     }
 
     try:
         commands[args.command](args)
-    except (FileNotFoundError, ValueError, RuntimeError) as e:
+    except (FileNotFoundError, ValueError, RuntimeError, ConnectionError, OSError) as e:
         err_console.print(f"[red bold]Error:[/red bold] {e}")
         sys.exit(1)
     except KeyboardInterrupt:

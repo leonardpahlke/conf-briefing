@@ -11,9 +11,10 @@ whisper_model = "large-v3-turbo"
 device = "auto"
 compute_type = "auto"
 scene_threshold = 27.0
+vlm_model = "gemma3:12b"
 
 [llm]
-model = "claude-sonnet-4-20250514"
+model = "qwen3:14b"
 
 [query]
 embedding_model = "nomic-embed-text"

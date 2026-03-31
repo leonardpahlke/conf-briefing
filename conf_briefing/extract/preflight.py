@@ -216,6 +216,21 @@ def _ensure_whisper_model(model_name: str) -> None:
         console.print(f"{tag('preflight')} Whisper model '{model_name}' downloaded.")
 
 
+def _check_vlm_model(config: Config, vlm_model: str) -> None:
+    """Verify Ollama is reachable and the VLM model is available."""
+    try:
+        import ollama
+
+        client = ollama.Client(host=config.llm.ollama_base_url)
+        client.show(vlm_model)
+        console.print(f"{tag('preflight')} VLM: {vlm_model} (available)")
+    except Exception as exc:
+        console.print(
+            f"{tag('preflight')} [yellow]VLM model '{vlm_model}' not available: {exc}. "
+            f"Run 'ollama pull {vlm_model}' or clear vlm_model to skip.[/yellow]"
+        )
+
+
 def check_extract_ready(config: Config) -> ExtractContext:
     """Preflight checks for extract pipeline. Returns resolved ExtractContext."""
     console.print(f"{tag('preflight')} Running preflight checks...")
@@ -237,6 +252,12 @@ def check_extract_ready(config: Config) -> ExtractContext:
     # Check model availability
     if backend == "faster-whisper":
         _ensure_whisper_model(model)
+
+    # VLM model check
+    vlm_model = config.extract.vlm_model
+    if vlm_model:
+        _check_vlm_model(config, vlm_model)
+
     console.print(f"{tag('preflight')} All checks passed.")
     return ExtractContext(
         transcribe_backend=backend,

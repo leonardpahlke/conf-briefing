@@ -16,11 +16,10 @@ def run_analyze(config: Config) -> None:
     console.rule("[bold magenta]Analyze[/bold magenta]")
 
     if not is_llm_available(config):
-        console.print(
-            f"{tag('analyze')} Skipping — Ollama not reachable or model "
-            f"'{config.llm.model}' not found. Start Ollama to enable analysis."
+        raise RuntimeError(
+            f"Ollama not reachable or model '{config.llm.model}' not found. "
+            f"Start Ollama and pull the model, or use --skip-analyze."
         )
-        return
 
     console.print(f"{tag('analyze')} Analyzing data for: {config.conference.name}")
     analyze_agenda(config)

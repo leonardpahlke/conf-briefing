@@ -2,6 +2,7 @@
 
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
+from conf_briefing.extract.describe import describe_all_slides
 from conf_briefing.extract.preflight import ExtractContext, check_extract_ready
 from conf_briefing.extract.slides import extract_all_slides
 from conf_briefing.extract.transcribe import transcribe_all
@@ -10,6 +11,7 @@ from conf_briefing.extract.transcribe_whisper_cpp import transcribe_all_wcpp
 __all__ = [
     "ExtractContext",
     "check_extract_ready",
+    "describe_all_slides",
     "extract_all_slides",
     "run_extract",
     "transcribe_all",
@@ -40,5 +42,9 @@ def run_extract(config: Config) -> None:
 
     # Slide extraction (scene detection + Tesseract OCR)
     extract_all_slides(config)
+
+    # VLM slide descriptions (if configured)
+    if config.extract.vlm_model:
+        describe_all_slides(config)
 
     console.print(f"{tag('extract')} Done.")

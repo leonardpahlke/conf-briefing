@@ -1,6 +1,7 @@
 """Recording analysis: summarize transcripts, extract insights."""
 
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from conf_briefing.analyze.llm import query_llm_json
@@ -129,26 +130,35 @@ def analyze_recordings(config: Config) -> Path:
         f"{tag('analyze')} Analyzing {len(sessions_with_transcripts)} talk transcripts..."
     )
 
-    # Analyze individual talks
+    # Analyze individual talks (parallel)
     talk_analyses = []
     with progress_bar() as pb:
         task = pb.add_task(
             f"{tag('analyze')} Analyzing talks", total=len(sessions_with_transcripts)
         )
-        for session in sessions_with_transcripts:
-            title = session["title"][:50]
-            try:
-                result = analyze_single_talk(config, session)
-                if result:
-                    talk_analyses.append(result)
-                pb.update(task, advance=1, description=f"{tag('analyze')} {title}")
-            except Exception as e:
-                pb.update(
-                    task,
-                    advance=1,
-                    description=f"{tag('analyze')} {title} [red]failed[/red]",
-                )
-                console.print(f"  {tag('analyze')} [red]{title} — {e}[/red]")
+
+        def _analyze(session):
+            return session["title"][:50], analyze_single_talk(config, session)
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = {
+                executor.submit(_analyze, s): s for s in sessions_with_transcripts
+            }
+            for future in as_completed(futures):
+                try:
+                    title, result = future.result()
+                    if result:
+                        talk_analyses.append(result)
+                    pb.update(task, advance=1, description=f"{tag('analyze')} {title}")
+                except Exception as e:
+                    session = futures[future]
+                    title = session["title"][:50]
+                    pb.update(
+                        task,
+                        advance=1,
+                        description=f"{tag('analyze')} {title} [red]failed[/red]",
+                    )
+                    console.print(f"  {tag('analyze')} [red]{title} — {e}[/red]")
 
     # Save individual analyses
     individual_path = data_dir / "analysis_talks.json"

@@ -8,6 +8,10 @@ default:
 uv-sync:
     uv sync --extra scrape --extra extract
 
+# Pull required Ollama models for an event
+pull-models event="kubecon-eu-2026":
+    uv run conf-briefing -c events/{{event}}.toml pull-models
+
 # --- Pipeline ---
 
 # Collect schedule and recordings for an event

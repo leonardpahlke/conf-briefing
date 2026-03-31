@@ -30,9 +30,19 @@ def transcribe_video(
         full_parts.append(seg.text)
 
     video_id = video_path.stem
+
+    # Load title from metadata sidecar written during download
+    title = ""
+    meta_path = video_path.parent / f"{video_id}.meta.json"
+    if meta_path.exists():
+        try:
+            title = json.loads(meta_path.read_text()).get("title", "")
+        except (json.JSONDecodeError, OSError):
+            pass
+
     transcript = {
         "video_id": video_id,
-        "title": "",
+        "title": title,
         "language": info.language,
         "duration_sec": round(info.duration, 1),
         "model": model_name,

@@ -17,9 +17,13 @@ schedule_url = "https://kccnceu2026.sched.com"
 [conference.recordings]
 source_url = "https://www.youtube.com/playlist?list=PLj6h78..."
 
+[extract]
+whisper_model = "large-v3-turbo"
+scene_threshold = 27.0
+vlm_model = "gemma3:12b"
+
 [llm]
 model = "qwen3:14b"
-ollama_base_url = "http://localhost:11434"
 
 [query]
 embedding_model = "nomic-embed-text"
@@ -33,7 +37,7 @@ top_k = 15
 | `name`         | Display name used in report headers.                              |
 | `schedule`     | Path to local schedule data file (JSON/TOML).                     |
 | `schedule_url` | URL to a schedule provider (e.g. sched.com). Auto-detected.      |
-| `sched_api_key`| API key for Sched (optional, falls back to scraping).             |
+| `sched_api_key`| API key for Sched (optional, falls back to `SCHED_API_KEY` env).  |
 
 ### Recordings
 
@@ -42,6 +46,21 @@ top_k = 15
 | `source_url`   | Playlist/channel URL for talk recordings (YouTube).            |         |
 | `video_ids`    | List of individual video IDs.                                  |         |
 | `video_format` | Video format to download.                                      | `mp4`   |
+
+## Extract
+
+Controls video processing: transcription, slide extraction, and optional VLM descriptions.
+
+| Field             | Description                                                     | Default                                     |
+|-------------------|-----------------------------------------------------------------|---------------------------------------------|
+| `whisper_model`   | Whisper model for transcription.                                | `deepdml/faster-whisper-large-v3-turbo-ct2` |
+| `device`          | Compute device (`auto`, `cuda`, `cpu`).                         | `auto`                                      |
+| `compute_type`    | Precision (`auto`, `float16`, `int8`).                          | `auto`                                      |
+| `scene_threshold` | PySceneDetect content threshold for slide extraction.           | `27.0`                                      |
+| `initial_prompt`  | Domain terminology hint for transcription accuracy.             | KubeCon/CNCF terms                          |
+| `vlm_model`       | Ollama vision model for slide descriptions. Empty = skip.       | `""`                                        |
+
+When `vlm_model` is set (e.g. `gemma3:12b`), the extract pipeline sends each slide image to the VLM after OCR. The VLM describes diagrams, architecture charts, and visual content that Tesseract cannot capture. Descriptions are stored in the slide JSON and flow into RAG chunks as `[Visual: ...]` annotations.
 
 ## LLM
 

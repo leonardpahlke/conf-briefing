@@ -15,11 +15,13 @@ _TAG_COLORS = {
     "slides": "bright_magenta",
     "clean": "green",
     "analyze": "magenta",
+    "ollama": "bright_magenta",
     "visualize": "blue",
     "report": "yellow",
     "index": "bright_cyan",
     "ask": "bright_green",
     "preflight": "bright_green",
+    "vlm": "bright_magenta",
     "config": "dim",
 }
 

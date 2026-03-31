@@ -30,7 +30,7 @@ def _convert_to_wav(video_path: Path, wav_path: Path) -> None:
         raise RuntimeError(f"ffmpeg conversion failed: {result.stderr[:500]}")
 
 
-def _parse_wcpp_output(wcpp_json: dict, video_id: str, model_name: str) -> dict:
+def _parse_wcpp_output(wcpp_json: dict, video_id: str, model_name: str, title: str = "") -> dict:
     """Convert whisper.cpp JSON output to our transcript schema."""
     segments = []
     full_parts = []
@@ -58,7 +58,7 @@ def _parse_wcpp_output(wcpp_json: dict, video_id: str, model_name: str) -> dict:
 
     return {
         "video_id": video_id,
-        "title": "",
+        "title": title,
         "language": language,
         "duration_sec": round(duration, 1),
         "model": model_name,
@@ -118,9 +118,18 @@ def transcribe_video_wcpp(
 
         wcpp_data = json.loads(wcpp_json_path.read_text())
 
+    # Load title from metadata sidecar written during download
+    title = ""
+    meta_path = video_path.parent / f"{video_id}.meta.json"
+    if meta_path.exists():
+        try:
+            title = json.loads(meta_path.read_text()).get("title", "")
+        except (json.JSONDecodeError, OSError):
+            pass
+
     # Parse into our schema
     model_name = Path(model_path).stem
-    transcript = _parse_wcpp_output(wcpp_data, video_id, model_name)
+    transcript = _parse_wcpp_output(wcpp_data, video_id, model_name, title=title)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     out_path = output_dir / f"{video_id}.json"

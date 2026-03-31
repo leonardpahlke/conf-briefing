@@ -8,6 +8,20 @@ conf-briefing -c events/kubecon-eu-2026.toml <command>
 
 Output files are written to the event's data directory (e.g. `events/kubecon-eu-2026/`). Reports go to `{data_dir}/reports/` and chart images to `{data_dir}/reports/images/`.
 
+## Setup
+
+Pull all required Ollama models (LLM, embeddings, and VLM if configured):
+
+```sh
+just pull-models kubecon-eu-2026
+```
+
+Verify extract dependencies are available:
+
+```sh
+just extract-check kubecon-eu-2026
+```
+
 ## Agenda Analysis
 
 **Input:** Conference schedule data (titles, abstracts, speakers, companies, tracks).
@@ -37,9 +51,17 @@ The reader picks clusters they care about and gets a filtered shortlist instead 
 
 ## Recording Analysis
 
-**Input:** YouTube talk transcripts.
+After the conference, when recordings are published, the `extract` command processes them in three steps:
 
-After the conference, when recordings are published, the tool downloads transcripts and analyzes the actual talk content:
+```sh
+just extract kubecon-eu-2026
+```
+
+1. **Transcription** — audio is transcribed using Whisper (faster-whisper or whisper.cpp, auto-detected). An `initial_prompt` provides domain terminology to improve accuracy.
+2. **Slide extraction** — scene detection finds slide transitions, perceptual hashing removes duplicates, and Tesseract OCR extracts text from each slide.
+3. **VLM descriptions** (optional) — when `vlm_model` is configured, each slide image is sent to a vision-language model to describe diagrams, architecture charts, and visual content that OCR cannot capture.
+
+The extract step is followed automatically by cleaning and LLM analysis:
 
 - **Key takeaways** — main points and conclusions per talk.
 - **Q&A extraction** — audience questions and answers given.
@@ -54,8 +76,7 @@ After the conference, when recordings are published, the tool downloads transcri
 **Prerequisites:** [Ollama](https://ollama.com/) running locally.
 
 ```sh
-ollama pull nomic-embed-text
-ollama pull qwen3:14b
+just pull-models kubecon-eu-2026
 ollama serve
 ```
 

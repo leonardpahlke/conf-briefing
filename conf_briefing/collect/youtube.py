@@ -5,6 +5,7 @@ Provider interface:
     download_videos(video_ids, output_dir) -> list[tuple[str, Path | None]]
 """
 
+import json
 import re
 from pathlib import Path
 
@@ -38,6 +39,38 @@ def collect_video_ids(source_url: str) -> list[str]:
     return unique
 
 
+def _write_metadata(video_id: str, info: dict, output_dir: Path) -> None:
+    """Write a {video_id}.meta.json sidecar with video title and metadata."""
+    meta = {
+        "video_id": video_id,
+        "title": info.get("title", ""),
+        "uploader": info.get("uploader", ""),
+        "upload_date": info.get("upload_date", ""),
+        "duration": info.get("duration"),
+    }
+    meta_path = output_dir / f"{video_id}.meta.json"
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+
+
+def _ensure_metadata(video_id: str, output_dir: Path) -> None:
+    """Backfill metadata for a cached video that has no sidecar yet."""
+    meta_path = output_dir / f"{video_id}.meta.json"
+    if meta_path.exists():
+        return
+
+    import yt_dlp
+
+    opts = {"quiet": True, "no_warnings": True, "skip_download": True}
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            if info:
+                _write_metadata(video_id, info, output_dir)
+    except Exception:
+        # Non-fatal: metadata is best-effort for cached videos
+        pass
+
+
 def _download_single(video_id: str, output_dir: Path) -> Path:
     """Download a single video as 720p MP4.
 
@@ -51,6 +84,7 @@ def _download_single(video_id: str, output_dir: Path) -> Path:
     # Check cache
     existing = list(output_dir.glob(f"{video_id}.mp4")) or list(output_dir.glob(f"{video_id}.mkv"))
     if existing:
+        _ensure_metadata(video_id, output_dir)
         return existing[0]
 
     outtmpl = str(output_dir / f"{video_id}.%(ext)s")
@@ -63,7 +97,9 @@ def _download_single(video_id: str, output_dir: Path) -> Path:
     }
 
     with yt_dlp.YoutubeDL(opts) as ydl:
-        ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+        info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=True)
+        if info:
+            _write_metadata(video_id, info, output_dir)
 
     results = list(output_dir.glob(f"{video_id}.mp4")) or list(output_dir.glob(f"{video_id}.*"))
     if not results:
@@ -86,13 +122,6 @@ def download_videos(
     with progress_bar() as pb:
         task = pb.add_task(f"{tag('download')} Downloading videos", total=len(video_ids))
         for vid in video_ids:
-            # Check cache
-            cached = list(output_dir.glob(f"{vid}.mp4")) or list(output_dir.glob(f"{vid}.mkv"))
-            if cached:
-                results.append((vid, cached[0]))
-                pb.update(task, advance=1, description=f"{tag('download')} {vid} [dim]cached[/dim]")
-                continue
-
             try:
                 path = _download_single(vid, output_dir)
                 results.append((vid, path))
