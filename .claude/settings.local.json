@@ -124,7 +124,8 @@
       "Bash(find .venv:*)",
       "Bash(nm:*)",
       "WebFetch(domain:discourse.nixos.org)",
-      "WebFetch(domain:lunnova.dev)"
+      "WebFetch(domain:lunnova.dev)",
+      "Bash(du:*)"
     ]
   }
 }

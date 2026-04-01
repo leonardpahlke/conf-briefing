@@ -3,6 +3,7 @@
 import base64
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import ollama
@@ -80,6 +81,20 @@ def describe_all_slides(config: Config) -> list[Path]:
         return []
 
     client = ollama.Client(host=config.llm.ollama_base_url)
+    num_parallel = config.llm.num_parallel
+
+    def _describe_one(idx_slide: tuple[int, dict]) -> tuple[int, str | None, str]:
+        idx, slide = idx_slide
+        image_file = slide.get("image_file", "")
+        image_path = data_dir / image_file
+        if not image_path.exists():
+            return idx, None, f"image not found ({image_file})"
+        t0 = time.monotonic()
+        try:
+            desc = describe_slide(client, vlm_model, image_path)
+        except Exception as exc:
+            return idx, None, str(exc)
+        return idx, desc, f"{time.monotonic() - t0:.1f}s"
 
     updated: list[Path] = []
     total_files = len(slide_jsons)
@@ -98,35 +113,30 @@ def describe_all_slides(config: Config) -> list[Path]:
 
         console.print(
             f"{tag('vlm')} [{fi}/{total_files}] {json_path.stem}: "
-            f"describing {len(to_describe)} slide(s)..."
+            f"describing {len(to_describe)} slide(s) "
+            f"({num_parallel} parallel)..."
         )
 
-        for si, (idx, slide) in enumerate(to_describe, 1):
-            image_file = slide.get("image_file", "")
-            image_path = data_dir / image_file
+        described = 0
 
-            if not image_path.exists():
-                console.print(
-                    f"  {tag('vlm')} Skipping slide {idx}: "
-                    f"image not found ({image_file})"
-                )
-                continue
-
-            t0 = time.monotonic()
-            try:
-                desc = describe_slide(client, vlm_model, image_path)
-            except Exception as exc:
-                console.print(
-                    f"  {tag('vlm')} [red]Failed[/red] slide {idx}: {exc}"
-                )
-                continue
-            elapsed = time.monotonic() - t0
-
-            slides[idx]["description"] = desc
-            console.print(
-                f"  {tag('vlm')} [{si}/{len(to_describe)}] "
-                f"slide {idx} ({elapsed:.1f}s)"
-            )
+        with ThreadPoolExecutor(max_workers=num_parallel) as executor:
+            futures = {
+                executor.submit(_describe_one, item): item for item in to_describe
+            }
+            for future in as_completed(futures):
+                idx, desc, info = future.result()
+                described += 1
+                if desc:
+                    slides[idx]["description"] = desc
+                    console.print(
+                        f"  {tag('vlm')} [{described}/{len(to_describe)}] "
+                        f"slide {idx} ({info})"
+                    )
+                else:
+                    console.print(
+                        f"  {tag('vlm')} [{described}/{len(to_describe)}] "
+                        f"slide {idx} [red]failed[/red]: {info}"
+                    )
 
         # Write back
         json_path.write_text(json.dumps(data, ensure_ascii=False, indent=2))

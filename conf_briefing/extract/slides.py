@@ -4,7 +4,7 @@ import json
 import time
 from pathlib import Path
 
-from conf_briefing.config import Config
+from conf_briefing.config import MIN_VIDEO_DURATION_SEC, Config
 from conf_briefing.console import console, tag
 
 
@@ -99,14 +99,30 @@ def _ocr_frames(frames: list[dict]) -> list[dict]:
     return results
 
 
+def _get_video_duration(video_path: Path) -> float:
+    """Get video duration in seconds from .meta.json."""
+    meta_path = video_path.with_suffix(".meta.json")
+    if meta_path.exists():
+        meta = json.loads(meta_path.read_text())
+        return float(meta.get("duration", 0))
+    return 0.0
+
+
 def extract_slides(
     video_path: Path,
     output_dir: Path,
     threshold: float = 27.0,
+    duration: float = 0.0,
 ) -> Path:
     """Extract slides from a single video. Returns path to slides JSON."""
     video_id = video_path.stem
     frames_dir = output_dir / video_id
+
+    # Use a lower threshold for longer videos (keynotes) to catch gradual transitions
+    if not duration:
+        duration = _get_video_duration(video_path)
+    if duration > 300:
+        threshold = min(threshold, 20.0)
 
     # Scene detection → frame extraction
     frames = _extract_frames(video_path, frames_dir, threshold)
@@ -142,18 +158,28 @@ def extract_all_slides(config: Config) -> list[Path]:
         console.print(f"{tag('slides')} No video files found.")
         return []
 
-    # Filter out already-processed videos
-    to_process = []
+    # Filter out already-processed videos and short videos (highlight reels)
+    to_process: list[tuple[Path, float]] = []  # (video_path, duration)
     existing = []
+    skipped_short = 0
     for vf in video_files:
         slides_path = output_dir / f"{vf.stem}.json"
         if slides_path.exists():
             existing.append(slides_path)
-        else:
-            to_process.append(vf)
+            continue
+
+        # Check video duration from .meta.json
+        duration = _get_video_duration(vf)
+        if duration and duration < MIN_VIDEO_DURATION_SEC:
+            skipped_short += 1
+            continue
+
+        to_process.append((vf, duration))
 
     if existing:
         console.print(f"{tag('slides')} Skipping {len(existing)} already-processed video(s).")
+    if skipped_short:
+        console.print(f"{tag('slides')} Skipping {skipped_short} short video(s) (<{MIN_VIDEO_DURATION_SEC}s).")
 
     if not to_process:
         console.print(f"{tag('slides')} All videos already processed.")
@@ -167,10 +193,10 @@ def extract_all_slides(config: Config) -> list[Path]:
 
     results = list(existing)
     total = len(to_process)
-    for i, vf in enumerate(to_process, 1):
+    for i, (vf, duration) in enumerate(to_process, 1):
         with console.status(f"{tag('slides')} [{i}/{total}] Processing {vf.name}..."):
             t0 = time.monotonic()
-            out = extract_slides(vf, output_dir, threshold)
+            out = extract_slides(vf, output_dir, threshold, duration=duration)
             elapsed = time.monotonic() - t0
         console.print(f"{tag('slides')} [{i}/{total}] {vf.name} ({elapsed:.0f}s)")
         results.append(out)

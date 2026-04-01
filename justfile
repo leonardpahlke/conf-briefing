@@ -32,7 +32,7 @@ pull-models event="kubecon-eu-2026" gpu="cpu":
             # whisperx pulls CUDA torch as a dependency, so we overwrite it
             # with the ROCm build. --reinstall is required because uv won't
             # replace an installed torch that already satisfies the constraint.
-            uv pip install --reinstall torch torchaudio \
+            uv pip install --reinstall torch torchaudio torchvision \
                 --index-url https://download.pytorch.org/whl/rocm7.2
             # NixOS blocks shared libraries with executable stacks. ctranslate2
             # ships with RWE GNU_STACK — clear the execute bit so it can load.
@@ -65,6 +65,12 @@ collect event:
 # Extract AI data from collected videos (transcribe, slides, analyze)
 extract event:
     {{ _run }} conf-briefing -c events/{{event}}.toml extract
+
+# Remove extract outputs so `just extract` re-processes everything
+clean-extract event:
+    rm -rf events/{{event}}/slides events/{{event}}/transcripts
+    rm -f events/{{event}}/matched.json events/{{event}}/transcripts.json
+    @echo "Cleaned extract outputs for {{event}}. Run 'just extract {{event}}' to re-process."
 
 # Generate reports from collected data
 report event:

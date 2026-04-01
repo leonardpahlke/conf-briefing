@@ -6,7 +6,7 @@ from pathlib import Path
 
 from conf_briefing.analyze.llm import query_llm_json
 from conf_briefing.analyze.schemas import SynthesisResult, TalkAnalysis
-from conf_briefing.config import Config
+from conf_briefing.config import MIN_VIDEO_DURATION_SEC, Config
 from conf_briefing.console import console, progress_bar, tag
 
 SYSTEM_PROMPT = """\
@@ -70,6 +70,11 @@ def analyze_single_talk(config: Config, session: dict) -> dict | None:
     if not transcript or len(transcript) < 100:
         return None
 
+    # Skip short videos (highlight reels, teasers)
+    duration = session.get("duration_sec", 0)
+    if duration and duration < MIN_VIDEO_DURATION_SEC:
+        return None
+
     # Prefer aligned slide-transcript content, fall back to flat slide text
     slide_content = session.get("slide_aligned", "") or session.get("slide_text", "")
     if slide_content:
@@ -93,7 +98,7 @@ def analyze_single_talk(config: Config, session: dict) -> dict | None:
         title=session["title"],
         speakers=speakers,
         track=session.get("track", ""),
-        transcript=transcript[:15000],  # Cap at ~15K chars to stay within context
+        transcript=transcript[:30000],  # Cap at ~30K chars (qwen3:32b supports 32K+ context)
     )
 
     result = query_llm_json(
@@ -177,7 +182,7 @@ def analyze_recordings(config: Config) -> Path:
         def _analyze(session):
             return session["title"][:50], analyze_single_talk(config, session)
 
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        with ThreadPoolExecutor(max_workers=config.llm.num_parallel) as executor:
             futures = {
                 executor.submit(_analyze, s): s for s in sessions_with_transcripts
             }

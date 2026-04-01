@@ -7,6 +7,10 @@ from pathlib import Path
 
 from conf_briefing.console import console, tag
 
+# Minimum video duration (seconds) to consider for analysis.
+# Videos shorter than this are assumed to be highlight reels or teasers.
+MIN_VIDEO_DURATION_SEC = 120
+
 
 @dataclass
 class RecordingsConfig:
@@ -28,6 +32,7 @@ class ConferenceConfig:
 class LLMConfig:
     model: str = "qwen3:14b"
     ollama_base_url: str = "http://localhost:11434"
+    num_parallel: int = 2  # concurrent Ollama request slots (set OLLAMA_NUM_PARALLEL to match)
 
 
 _DEFAULT_INITIAL_PROMPT = (
@@ -136,10 +141,11 @@ def load_config(path: str | Path) -> Config:
     )
 
     llm_raw = raw.get("llm", {})
-    _warn_unknown(llm_raw, {"model", "ollama_base_url"}, "llm")
+    _warn_unknown(llm_raw, {"model", "ollama_base_url", "num_parallel"}, "llm")
     llm = LLMConfig(
         model=llm_raw.get("model", "qwen3:14b"),
         ollama_base_url=llm_raw.get("ollama_base_url", "http://localhost:11434"),
+        num_parallel=llm_raw.get("num_parallel", 2),
     )
 
     query_raw = raw.get("query", {})

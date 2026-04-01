@@ -148,6 +148,46 @@ CANONICAL_NAMES: dict[str, str] = {
     # Cosign / Sigstore
     "cosign": "Cosign",
     "sigstore": "Sigstore",
+    # HAMi (GPU device management)
+    "hami": "HAMi",
+    "hemi": "HAMi",
+    # Perses (observability dashboards)
+    "perses": "Perses",
+    "persis": "Perses",
+    # Kagent (Kubernetes AI agent)
+    "kagent": "Kagent",
+    "k-agent": "Kagent",
+    # Solo.io / Gloo
+    "solo.io": "Solo.io",
+    "solodial": "Solo.io",
+    "gloo": "Gloo",
+    # Headlamp
+    "headlamp": "Headlamp",
+    # KubeVela
+    "kubevela": "KubeVela",
+    "kube vela": "KubeVela",
+    # Karmada
+    "karmada": "Karmada",
+    # OpenKruise
+    "openkruise": "OpenKruise",
+    "kruise": "OpenKruise",
+    # Strimzi
+    "strimzi": "Strimzi",
+    # Keptn
+    "keptn": "Keptn",
+    # Inspektor Gadget
+    "inspektor gadget": "Inspektor Gadget",
+    # Kubescape
+    "kubescape": "Kubescape",
+    # Litmuschaos / LitmusChaos
+    "litmus": "LitmusChaos",
+    "litmuschaos": "LitmusChaos",
+    "litmus chaos": "LitmusChaos",
+    # vCluster
+    "vcluster": "vCluster",
+    # Kata Containers
+    "kata containers": "Kata Containers",
+    "kata": "Kata Containers",
 }
 
 # Pre-compile a regex that matches any alias (longest first to avoid partial matches).

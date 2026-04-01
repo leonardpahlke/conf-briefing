@@ -6,7 +6,7 @@ import unicodedata
 from difflib import SequenceMatcher
 from pathlib import Path
 
-from conf_briefing.config import Config
+from conf_briefing.config import MIN_VIDEO_DURATION_SEC, Config
 from conf_briefing.console import console, tag
 
 
@@ -195,8 +195,16 @@ def match_transcripts(config: Config) -> Path:
         session["transcript"] = None
         session["video_id"] = None
 
+    # Filter out short videos (highlight reels, teasers) before matching
+    skipped_short = 0
+
     matched_count = 0
     for vid, transcript in transcripts.items():
+        duration = transcript.get("duration_sec", 0)
+        if duration and duration < MIN_VIDEO_DURATION_SEC:
+            skipped_short += 1
+            continue
+
         # Use the first segment or full text to try title matching
         best_score = 0.0
         best_idx = -1
@@ -213,6 +221,7 @@ def match_transcripts(config: Config) -> Path:
         if best_idx >= 0 and best_score > 0.6:
             sessions[best_idx]["transcript"] = transcript.get("full_text", "")
             sessions[best_idx]["video_id"] = vid
+            sessions[best_idx]["duration_sec"] = duration
             matched_count += 1
         else:
             # Unmatched transcript — add as standalone entry
@@ -227,6 +236,7 @@ def match_transcripts(config: Config) -> Path:
                     "tags": [],
                     "transcript": transcript.get("full_text", ""),
                     "video_id": vid,
+                    "duration_sec": duration,
                 }
             )
 
@@ -277,6 +287,8 @@ def match_transcripts(config: Config) -> Path:
     out_path.write_text(json.dumps(sessions, indent=2, ensure_ascii=False))
     console.print(
         f"{tag('clean')} Matched {matched_count} transcripts, "
-        f"{slides_matched} slide sets, saved to {out_path}"
+        f"{slides_matched} slide sets"
+        f"{f', skipped {skipped_short} short videos (<{MIN_VIDEO_DURATION_SEC}s)' if skipped_short else ''}"
+        f", saved to {out_path}"
     )
     return out_path
