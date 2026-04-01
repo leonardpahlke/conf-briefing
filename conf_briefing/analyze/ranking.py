@@ -56,7 +56,7 @@ def rank_clusters(config: Config) -> Path:
         console.print(f"{tag('analyze')} No clusters found in agenda analysis, skipping ranking.")
         return out_path
 
-    eval_topics = ["general industry trends", "emerging technology", "practical applicability"]
+    eval_topics = config.analyze.eval_topics
 
     prompt = RANKING_PROMPT_TEMPLATE.format(
         conference_name=config.conference.name,

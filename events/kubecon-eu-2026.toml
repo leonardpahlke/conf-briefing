@@ -13,6 +13,9 @@ compute_type = "auto"
 scene_threshold = 27.0
 vlm_model = "qwen3-vl:8b"
 
+[analyze]
+eval_topics = ["AI/ML infrastructure", "platform engineering", "security and compliance"]
+
 [llm]
 model = "qwen3:32b-q8_0"
 

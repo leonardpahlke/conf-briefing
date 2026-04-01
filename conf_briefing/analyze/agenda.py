@@ -38,7 +38,9 @@ Produce a JSON object with these fields:
   "narrative": "A 2-3 paragraph markdown summary of the conference landscape."
 }}
 
-Group talks into 8-15 thematic clusters. Extract the top 20 keywords. \
+Group talks into 15-25 thematic clusters, each containing 10-25 talks. \
+Ensure every session appears in at least one cluster. \
+Extract the top 20 keywords. \
 Count company mentions across speakers. Summarize track distribution."""
 
 
@@ -71,7 +73,7 @@ def analyze_agenda(config: Config) -> Path:
 
     console.print(f"{tag('analyze')} Running agenda analysis on {len(sessions)} sessions...")
     with console.status(f"{tag('analyze')} Analyzing agenda..."):
-        result = query_llm_json(config, SYSTEM_PROMPT, prompt, max_tokens=8192)
+        result = query_llm_json(config, SYSTEM_PROMPT, prompt, max_tokens=16384)
 
     out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False))
     console.print(f"{tag('analyze')} Agenda analysis saved to {out_path}")

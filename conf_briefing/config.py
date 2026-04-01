@@ -59,12 +59,25 @@ class QueryConfig:
     top_k: int = 15
 
 
+_DEFAULT_EVAL_TOPICS = [
+    "general industry trends",
+    "emerging technology",
+    "practical applicability",
+]
+
+
+@dataclass
+class AnalyzeConfig:
+    eval_topics: list[str] = field(default_factory=lambda: list(_DEFAULT_EVAL_TOPICS))
+
+
 @dataclass
 class Config:
     conference: ConferenceConfig = field(default_factory=ConferenceConfig)
     extract: ExtractConfig = field(default_factory=ExtractConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
     query: QueryConfig = field(default_factory=QueryConfig)
+    analyze: AnalyzeConfig = field(default_factory=AnalyzeConfig)
     data_dir: Path = Path("data")
 
 
@@ -86,7 +99,7 @@ def load_config(path: str | Path) -> Config:
     data_dir.mkdir(parents=True, exist_ok=True)
 
     # Warn about unknown top-level keys
-    known_sections = {"conference", "extract", "llm", "query"}
+    known_sections = {"conference", "extract", "llm", "query", "analyze"}
     for key in raw:
         if key not in known_sections:
             console.print(
@@ -156,11 +169,18 @@ def load_config(path: str | Path) -> Config:
         top_k=query_raw.get("top_k", 15),
     )
 
+    analyze_raw = raw.get("analyze", {})
+    _warn_unknown(analyze_raw, {"eval_topics"}, "analyze")
+    analyze = AnalyzeConfig(
+        eval_topics=analyze_raw.get("eval_topics", list(_DEFAULT_EVAL_TOPICS)),
+    )
+
     return Config(
         conference=conference,
         extract=extract,
         llm=llm,
         query=query,
+        analyze=analyze,
         data_dir=data_dir,
     )
 

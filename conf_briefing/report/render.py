@@ -56,7 +56,6 @@ def render_reports(config: Config) -> list[Path]:
         "briefing_report.md.j2": "briefing_report.md",
         "agenda_report.md.j2": "agenda_report.md",
         "ranking_report.md.j2": "ranking_report.md",
-        "recording_report.md.j2": "recording_report.md",
     }
 
     for template_name, output_name in template_map.items():

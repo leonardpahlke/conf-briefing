@@ -72,10 +72,8 @@ clean-extract event:
     rm -f events/{{event}}/matched.json events/{{event}}/transcripts.json
     @echo "Cleaned extract outputs for {{event}}. Run 'just extract {{event}}' to re-process."
 
-# Generate reports from collected data
+# Generate reports from analyzed data (run extract first)
 report event:
-    {{ _run }} conf-briefing -c events/{{event}}.toml clean
-    {{ _run }} conf-briefing -c events/{{event}}.toml analyze
     {{ _run }} conf-briefing -c events/{{event}}.toml visualize
     {{ _run }} conf-briefing -c events/{{event}}.toml report
 

@@ -40,10 +40,10 @@ def describe_slide(client: ollama.Client, model: str, image_path: Path) -> str:
                 ],
                 options={"num_predict": 512},
             )
-            text = response.message.content
+            text = (response.message.content or "").strip()
             if not text:
-                raise ValueError("VLM returned empty response")
-            return text.strip()
+                return "[no content]"  # Non-slide frame; sentinel prevents retry
+            return text
         except _RETRYABLE_ERRORS as exc:
             last_exc = exc
             if attempt < len(_RETRY_DELAYS):
