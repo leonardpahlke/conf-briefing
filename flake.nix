@@ -43,6 +43,9 @@
           shellHook = ''
             # Enable experimental flash attention on RDNA GPUs (suppresses warnings)
             export TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
+            # Strix Halo (gfx1151): prevent SDMA hangs/segfaults and SVM crashes
+            export HSA_ENABLE_SDMA=0
+            export HSA_USE_SVM=0
 
             # Skip uv sync when ROCm torch is installed — sync would overwrite
             # pip-installed packages (whisperx, huggingface-hub, etc.)

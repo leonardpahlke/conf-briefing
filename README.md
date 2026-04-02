@@ -6,6 +6,8 @@ AI-powered conference analysis tool. Extracts schedules, transcribes recordings,
 
 See the [documentation](docs/src/introduction.md) for setup and usage.
 
+Developed and tested on AMD Strix Halo (ROCm, gfx1151) — see [STRIX-HALO.md](STRIX-HALO.md) for GPU setup notes.
+
 ## License
 
 [Apache-2.0](LICENSE)

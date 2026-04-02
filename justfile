@@ -10,6 +10,33 @@ default:
 uv-sync:
     uv sync --extra scrape --extra extract
 
+# Sync deps for AMD gfx1151 (Strix Halo) — deps only, no Ollama pull
+sync:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo ":: Syncing base dependencies (excluding torch packages)..."
+    uv sync --extra scrape --extra extract \
+        --no-install-package torch \
+        --no-install-package torchvision \
+        --no-install-package torchaudio \
+        --no-install-package triton
+    echo ":: Installing WhisperX + transformers..."
+    uv pip install --no-deps "whisperx>=3.3" "transformers>=4.40,<5"
+    echo ":: Installing gfx1151 PyTorch from TheROCk nightlies..."
+    rocm_index="https://rocm.nightlies.amd.com/v2/gfx1151/"
+    uv pip install --no-deps \
+        --index-url "$rocm_index" \
+        "torch==2.9.1+rocm7.13.0a20260402" \
+        "torchvision==0.24.0+rocm7.13.0a20260402" \
+        "torchaudio==2.10.0+rocm7.13.0a20260325" \
+        "triton==3.5.1+rocm7.13.0a20260402"
+    echo ":: Installing ROCm SDK runtime..."
+    uv pip install --index-url "$rocm_index" \
+        rocm-sdk-core rocm-sdk-libraries-gfx1151 rocm
+    python3 scripts/fix-execstack.py
+    touch .rocm-torch
+    echo ":: Done. Run 'just pull-models <event> amd' to also pull Ollama models."
+
 # Sync deps + pull Ollama models (gpu: "cpu", "amd", or "nvidia")
 pull-models event="kubecon-eu-2026" gpu="cpu":
     #!/usr/bin/env bash
@@ -23,17 +50,28 @@ pull-models event="kubecon-eu-2026" gpu="cpu":
             rm -f .rocm-torch
             ;;
         amd)
-            echo ":: Syncing base dependencies..."
-            uv sync $extras
+            echo ":: Syncing base dependencies (excluding torch packages)..."
+            uv sync $extras \
+                --no-install-package torch \
+                --no-install-package torchvision \
+                --no-install-package torchaudio \
+                --no-install-package triton
             echo ":: Installing WhisperX + transformers..."
             # Pin transformers<5 to stay compatible with huggingface-hub in lockfile.
-            uv pip install "whisperx>=3.3" "transformers>=4.40,<5"
-            echo ":: Installing ROCm 7.2 PyTorch (replacing CUDA wheels)..."
-            # whisperx pulls CUDA torch as a dependency, so we overwrite it
-            # with the ROCm build. --reinstall is required because uv won't
-            # replace an installed torch that already satisfies the constraint.
-            uv pip install --reinstall torch torchaudio torchvision \
-                --index-url https://download.pytorch.org/whl/rocm7.2
+            uv pip install --no-deps "whisperx>=3.3" "transformers>=4.40,<5"
+            echo ":: Installing gfx1151 PyTorch from TheROCk nightlies..."
+            # Upstream ROCm wheels lack gfx1151 support. TheROCk nightlies
+            # depend on rocm[libraries] which uv can't resolve, so --no-deps.
+            rocm_index="https://rocm.nightlies.amd.com/v2/gfx1151/"
+            uv pip install --no-deps \
+                --index-url "$rocm_index" \
+                "torch==2.9.1+rocm7.13.0a20260402" \
+                "torchvision==0.24.0+rocm7.13.0a20260402" \
+                "torchaudio==2.10.0+rocm7.13.0a20260325" \
+                "triton==3.5.1+rocm7.13.0a20260402"
+            echo ":: Installing ROCm SDK runtime..."
+            uv pip install --index-url "$rocm_index" \
+                rocm-sdk-core rocm-sdk-libraries-gfx1151 rocm
             # NixOS blocks shared libraries with executable stacks. ctranslate2
             # ships with RWE GNU_STACK — clear the execute bit so it can load.
             python3 scripts/fix-execstack.py
