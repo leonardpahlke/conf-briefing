@@ -6,6 +6,7 @@ from pathlib import Path
 
 from conf_briefing.config import MIN_VIDEO_DURATION_SEC, Config
 from conf_briefing.console import console, tag
+from conf_briefing.io import load_json_file
 
 
 def _extract_frames(video_path: Path, output_dir: Path, threshold: float) -> list[dict]:
@@ -27,32 +28,34 @@ def _extract_frames(video_path: Path, output_dir: Path, threshold: float) -> lis
 
     output_dir.mkdir(parents=True, exist_ok=True)
     cap = cv2.VideoCapture(str(video_path))
-    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    try:
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
 
-    frames = []
-    for i, (start, _end) in enumerate(scene_list):
-        frame_num = start.get_frames()
-        timestamp = frame_num / fps
+        frames = []
+        for i, (start, _end) in enumerate(scene_list):
+            frame_num = start.get_frames()
+            timestamp = frame_num / fps
 
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
-        ret, frame = cap.read()
-        if not ret:
-            continue
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
+            ret, frame = cap.read()
+            if not ret:
+                continue
 
-        img_name = f"{i + 1:04d}.jpg"
-        img_path = output_dir / img_name
-        cv2.imwrite(str(img_path), frame)
+            img_name = f"{i + 1:04d}.jpg"
+            img_path = output_dir / img_name
+            cv2.imwrite(str(img_path), frame)
 
-        frames.append(
-            {
-                "index": i,
-                "timestamp_sec": round(timestamp, 2),
-                "image_file": str(Path("slides") / video_path.stem / img_name),
-                "_abs_path": str(img_path),
-            }
-        )
+            frames.append(
+                {
+                    "index": i,
+                    "timestamp_sec": round(timestamp, 2),
+                    "image_file": str(Path("slides") / video_path.stem / img_name),
+                    "_abs_path": str(img_path),
+                }
+            )
+    finally:
+        cap.release()
 
-    cap.release()
     return frames
 
 
@@ -68,8 +71,8 @@ def _dedup_frames(frames: list[dict], max_distance: int = 6) -> list[dict]:
     seen_hashes: list[imagehash.ImageHash] = []
 
     for frame in frames:
-        img = Image.open(frame["_abs_path"])
-        h = imagehash.dhash(img)
+        with Image.open(frame["_abs_path"]) as img:
+            h = imagehash.dhash(img)
 
         is_dup = any(abs(h - prev) <= max_distance for prev in seen_hashes)
         if not is_dup:
@@ -80,30 +83,41 @@ def _dedup_frames(frames: list[dict], max_distance: int = 6) -> list[dict]:
 
 
 def _ocr_frames(frames: list[dict]) -> list[dict]:
-    """Run Tesseract OCR on each frame image."""
+    """Run Tesseract OCR on each frame image (parallel — Tesseract releases the GIL)."""
+    import os
+    from concurrent.futures import ThreadPoolExecutor
+
     import pytesseract
     from PIL import Image
 
-    results = []
-    for frame in frames:
-        img = Image.open(frame["_abs_path"])
-        text = pytesseract.image_to_string(img).strip()
-        results.append(
-            {
-                "index": frame["index"],
-                "timestamp_sec": frame["timestamp_sec"],
-                "image_file": frame["image_file"],
-                "text": text,
-            }
-        )
-    return results
+    if not frames:
+        return []
+
+    def _ocr_single(idx_frame: tuple[int, dict]) -> tuple[int, dict]:
+        idx, frame = idx_frame
+        with Image.open(frame["_abs_path"]) as img:
+            text = pytesseract.image_to_string(img).strip()
+        return idx, {
+            "index": frame["index"],
+            "timestamp_sec": frame["timestamp_sec"],
+            "image_file": frame["image_file"],
+            "text": text,
+        }
+
+    max_workers = min(len(frames), os.cpu_count() or 4)
+    indexed: dict[int, dict] = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        for idx, result in pool.map(_ocr_single, enumerate(frames)):
+            indexed[idx] = result
+
+    return [indexed[i] for i in range(len(frames))]
 
 
 def _get_video_duration(video_path: Path) -> float:
     """Get video duration in seconds from .meta.json."""
     meta_path = video_path.with_suffix(".meta.json")
     if meta_path.exists():
-        meta = json.loads(meta_path.read_text())
+        meta = load_json_file(meta_path)
         return float(meta.get("duration", 0))
     return 0.0
 

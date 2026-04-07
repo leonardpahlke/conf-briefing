@@ -12,6 +12,7 @@ from conf_briefing.console import console, tag
 
 _RETRY_DELAYS = (2, 5, 10)
 _RETRYABLE_ERRORS = (ollama.ResponseError, ConnectionError, TimeoutError, OSError)
+_client_cache: dict[str, ollama.Client] = {}
 
 
 def is_llm_available(config: Config) -> bool:
@@ -31,13 +32,16 @@ def query_llm(
     *,
     max_tokens: int = 4096,
     temperature: float = 0,
-    format: dict | None = None,
+    response_format: dict | None = None,
 ) -> str:
     """Send a prompt to the LLM via Ollama and return the text response.
 
     Retries up to 3 times on transient errors with exponential backoff.
     """
-    client = ollama.Client(host=config.llm.ollama_base_url)
+    base_url = config.llm.ollama_base_url
+    if base_url not in _client_cache:
+        _client_cache[base_url] = ollama.Client(host=base_url)
+    client = _client_cache[base_url]
     last_exc: Exception | None = None
 
     kwargs: dict = {
@@ -48,8 +52,8 @@ def query_llm(
         ],
         "options": {"num_predict": max_tokens, "temperature": temperature},
     }
-    if format is not None:
-        kwargs["format"] = format
+    if response_format is not None:
+        kwargs["format"] = response_format
 
     for attempt in range(len(_RETRY_DELAYS) + 1):
         try:
@@ -68,7 +72,8 @@ def query_llm(
                 )
                 time.sleep(delay)
 
-    raise last_exc  # type: ignore[misc]
+    assert last_exc is not None
+    raise last_exc
 
 
 def _extract_json_from_text(text: str) -> str:
@@ -118,7 +123,7 @@ def query_llm_json(
             prompt,
             max_tokens=max_tokens,
             temperature=temperature,
-            format=schema.model_json_schema(),
+            response_format=schema.model_json_schema(),
         )
         return json.loads(response)
 

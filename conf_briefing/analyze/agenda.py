@@ -6,6 +6,7 @@ from pathlib import Path
 from conf_briefing.analyze.llm import query_llm_json
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
+from conf_briefing.io import load_json_file
 
 SYSTEM_PROMPT = """\
 You are a conference analysis expert. You analyze conference schedules to identify \
@@ -44,7 +45,7 @@ Extract the top 20 keywords. \
 Count company mentions across speakers. Summarize track distribution."""
 
 
-def analyze_agenda(config: Config) -> Path:
+def analyze_agenda(config: Config) -> Path | None:
     """Analyze the conference agenda using LLM."""
     data_dir = config.data_dir
     schedule_path = data_dir / "schedule_clean.json"
@@ -52,16 +53,16 @@ def analyze_agenda(config: Config) -> Path:
 
     if not schedule_path.exists():
         console.print(f"{tag('analyze')} No cleaned schedule found, skipping agenda analysis.")
-        return out_path
+        return None
 
-    sessions = json.loads(schedule_path.read_text())
+    sessions = load_json_file(schedule_path)
     # Send condensed version (titles + abstracts + speakers) to fit in context
     condensed = [
         {
-            "title": s["title"],
-            "abstract": s["abstract"][:300],
-            "speakers": s["speakers"],
-            "track": s["track"],
+            "title": s.get("title", ""),
+            "abstract": s.get("abstract", "")[:300],
+            "speakers": s.get("speakers", []),
+            "track": s.get("track", ""),
         }
         for s in sessions
     ]

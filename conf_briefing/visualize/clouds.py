@@ -1,10 +1,10 @@
 """Word cloud generation."""
 
-import json
 from pathlib import Path
 
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
+from conf_briefing.io import load_json_file
 
 
 def generate_wordcloud(config: Config) -> Path | None:
@@ -16,7 +16,7 @@ def generate_wordcloud(config: Config) -> Path | None:
         console.print(f"{tag('visualize')} No agenda analysis found, skipping word cloud.")
         return None
 
-    agenda = json.loads(agenda_path.read_text())
+    agenda = load_json_file(agenda_path)
 
     # Collect all keywords from clusters and top_keywords
     words: dict[str, int] = {}

@@ -5,6 +5,7 @@ import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NamedTuple
 
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
@@ -70,18 +71,15 @@ def _resolve_device(config_device: str, config_compute: str) -> tuple[str, str]:
             import os
             import sys
 
-            _devnull = open(os.devnull, "w")
-            _old_stderr = sys.stderr
             _stderr_fd = sys.stderr.fileno()
             _old_stderr_fd = os.dup(_stderr_fd)
-            os.dup2(_devnull.fileno(), _stderr_fd)
-            try:
-                _cuda_available = torch.cuda.is_available()
-            finally:
-                os.dup2(_old_stderr_fd, _stderr_fd)
-                os.close(_old_stderr_fd)
-                _devnull.close()
-                sys.stderr = _old_stderr
+            with open(os.devnull, "w") as _devnull:
+                os.dup2(_devnull.fileno(), _stderr_fd)
+                try:
+                    _cuda_available = torch.cuda.is_available()
+                finally:
+                    os.dup2(_old_stderr_fd, _stderr_fd)
+                    os.close(_old_stderr_fd)
 
             if _cuda_available:
                 # ROCm torch exposes GPUs via torch.cuda but sets torch.version.hip
@@ -145,13 +143,21 @@ def _find_wcpp_model(model_name: str) -> str | None:
     return None
 
 
+class TranscriptionBackend(NamedTuple):
+    backend: str
+    device: str
+    compute_type: str
+    model: str
+    wcpp_binary: str | None
+    wcpp_model_path: str | None
+
+
 def _detect_transcription_backend(
     config: Config,
-) -> tuple[str, str, str, str, str | None, str | None]:
+) -> TranscriptionBackend:
     """Auto-detect best transcription backend.
 
     Priority: whisperx (diarization) > whisper-cpp (ROCm) > faster-whisper.
-    Returns (backend, device, compute_type, model, wcpp_binary, wcpp_model_path).
     """
     # Prefer WhisperX if installed (batched inference, VAD, alignment, diarization).
     # Diarization gracefully degrades without HF_TOKEN.
@@ -170,7 +176,7 @@ def _detect_transcription_backend(
             f"{tag('preflight')} Transcription: whisperx on "
             f"{device_desc}{diarize_note}"
         )
-        return (
+        return TranscriptionBackend(
             "whisperx",
             device,
             compute_type,
@@ -185,7 +191,7 @@ def _detect_transcription_backend(
         if wcpp_model:
             device = "rocm" if _detect_rocm_gpu() else "cpu"
             console.print(f"{tag('preflight')} Transcription: whisper.cpp on {device.upper()}")
-            return (
+            return TranscriptionBackend(
                 "whisper-cpp",
                 device,
                 "float16",
@@ -209,7 +215,7 @@ def _detect_transcription_backend(
 
     device, compute_type = _resolve_device(config.extract.device, config.extract.compute_type)
     console.print(f"{tag('preflight')} Transcription: faster-whisper on {device} ({compute_type})")
-    return (
+    return TranscriptionBackend(
         "faster-whisper",
         device,
         compute_type,

@@ -32,7 +32,7 @@ def tag(module: str) -> str:
     return f"[{color}]\\[{module}][/{color}]"
 
 
-def progress_bar(description: str = "Working...") -> Progress:
+def progress_bar() -> Progress:
     """Create a standard progress bar for batch operations."""
     return Progress(
         SpinnerColumn(),

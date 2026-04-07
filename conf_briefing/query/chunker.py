@@ -1,9 +1,11 @@
 """Load analysis data and split into chunks with metadata for vector indexing."""
 
+import hashlib
 import json
 from dataclasses import dataclass, field
 
 from conf_briefing.config import Config
+from conf_briefing.io import load_json_file
 
 # Approximate chars per token for chunk size estimation
 CHARS_PER_TOKEN = 4
@@ -49,7 +51,9 @@ def _base_metadata(session: dict) -> dict:
 
 def _safe_id(text: str) -> str:
     """Make a string safe for use as a chunk ID component."""
-    return text.lower().replace(" ", "-")[:80]
+    slug = text.lower().replace(" ", "-")[:80]
+    suffix = hashlib.md5(text.encode()).hexdigest()[:8]
+    return f"{slug}-{suffix}"
 
 
 def _chunk_transcript_segments(segments: list[dict], video_id: str, session: dict) -> list[Chunk]:
@@ -117,7 +121,7 @@ def _load_transcript_chunks(config: Config, sessions: list[dict]) -> list[Chunk]
         if not transcript_file.exists():
             continue
 
-        data = json.loads(transcript_file.read_text())
+        data = load_json_file(transcript_file)
         segments = data.get("segments", [])
         chunks.extend(_chunk_transcript_segments(segments, video_id, session))
 
@@ -319,7 +323,7 @@ def _load_slide_chunks(config: Config, sessions: list[dict]) -> list[Chunk]:
         if not slides_file.exists():
             continue
 
-        data = json.loads(slides_file.read_text())
+        data = load_json_file(slides_file)
         slides = data.get("slides", [])
         if not slides:
             continue
@@ -505,7 +509,7 @@ def load_chunks(config: Config) -> list[Chunk]:
     for fname in ("matched.json", "schedule_clean.json"):
         p = data_dir / fname
         if p.exists():
-            sessions = json.loads(p.read_text())
+            sessions = load_json_file(p)
             break
 
     # Transcript chunks
@@ -520,25 +524,25 @@ def load_chunks(config: Config) -> list[Chunk]:
     # Talk analysis chunks
     talks_path = data_dir / "analysis_talks.json"
     if talks_path.exists():
-        analyses = json.loads(talks_path.read_text())
+        analyses = load_json_file(talks_path)
         chunks.extend(_load_talk_analysis_chunks(analyses))
 
     # Cluster summary chunks
     ranking_path = data_dir / "analysis_ranking.json"
     if ranking_path.exists():
-        rankings = json.loads(ranking_path.read_text())
+        rankings = load_json_file(ranking_path)
         chunks.extend(_load_cluster_chunks(rankings))
 
     # Conference narrative chunks
     agenda: dict = {}
     agenda_path = data_dir / "analysis_agenda.json"
     if agenda_path.exists():
-        agenda = json.loads(agenda_path.read_text())
+        agenda = load_json_file(agenda_path)
 
     recordings: dict = {}
     recordings_path = data_dir / "analysis_recordings.json"
     if recordings_path.exists():
-        recordings = json.loads(recordings_path.read_text())
+        recordings = load_json_file(recordings_path)
 
     chunks.extend(_load_narrative_chunks(agenda, recordings))
 

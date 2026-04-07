@@ -1,12 +1,10 @@
 """Plotly chart generation with SVG export."""
 
-import json
 from pathlib import Path
-
-import plotly.graph_objects as go
 
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
+from conf_briefing.io import load_json_file
 
 
 def _ensure_images_dir(config: Config) -> Path:
@@ -17,6 +15,8 @@ def _ensure_images_dir(config: Config) -> Path:
 
 def chart_topic_frequency(agenda: dict, images_dir: Path) -> Path | None:
     """Bar chart of top keywords/topics."""
+    import plotly.graph_objects as go
+
     keywords = agenda.get("top_keywords", [])
     if not keywords:
         return None
@@ -45,6 +45,8 @@ def chart_topic_frequency(agenda: dict, images_dir: Path) -> Path | None:
 
 def chart_company_presence(agenda: dict, images_dir: Path) -> Path | None:
     """Bar chart of company talk counts."""
+    import plotly.graph_objects as go
+
     companies = agenda.get("company_presence", {})
     if not companies:
         return None
@@ -74,6 +76,8 @@ def chart_company_presence(agenda: dict, images_dir: Path) -> Path | None:
 
 def chart_track_distribution(agenda: dict, images_dir: Path) -> Path | None:
     """Pie chart of track distribution."""
+    import plotly.graph_objects as go
+
     tracks = agenda.get("track_distribution", {})
     if not tracks:
         return None
@@ -95,10 +99,12 @@ def chart_track_distribution(agenda: dict, images_dir: Path) -> Path | None:
 
 def chart_cluster_relevance(ranking: list[dict], images_dir: Path) -> Path | None:
     """Horizontal bar chart of cluster relevance scores."""
+    import plotly.graph_objects as go
+
     if not ranking:
         return None
 
-    labels = [c["name"] for c in ranking]
+    labels = [c.get("name", "") for c in ranking]
     scores = [c.get("relevance_score", 0) for c in ranking]
 
     fig = go.Figure(
@@ -119,8 +125,10 @@ def chart_cluster_relevance(ranking: list[dict], images_dir: Path) -> Path | Non
     return out
 
 
-def chart_maturity_radar(recordings: dict, images_dir: Path) -> Path | None:
+def chart_maturity_strip(recordings: dict, images_dir: Path) -> Path | None:
     """Dot-strip chart: technologies on Y, maturity rings on X, color = evidence quality."""
+    import plotly.graph_objects as go
+
     items = recordings.get("maturity_landscape", [])
     if not items:
         return None
@@ -133,11 +141,11 @@ def chart_maturity_radar(recordings: dict, images_dir: Path) -> Path | None:
         "production_proven": "#54A24B",
     }
 
-    techs = [it["technology"] for it in items]
+    techs = [it.get("technology", "") for it in items]
     x_vals = [ring_order.get(it.get("ring", "assess"), 0) for it in items]
     colors = [evidence_colors.get(it.get("evidence_quality", "anecdotal"), "#BAB0AC") for it in items]
     hover = [
-        f"{it['technology']}<br>Ring: {it.get('ring', 'assess')}<br>"
+        f"{it.get('technology', '')}<br>Ring: {it.get('ring', 'assess')}<br>"
         f"Evidence: {it.get('evidence_quality', 'anecdotal')}<br>"
         f"Rationale: {it.get('rationale', '')[:80]}"
         for it in items
@@ -168,7 +176,7 @@ def chart_maturity_radar(recordings: dict, images_dir: Path) -> Path | None:
         ),
     )
 
-    out = images_dir / "maturity_radar.svg"
+    out = images_dir / "maturity_strip.svg"
     fig.write_image(str(out), format="svg")
     console.print(f"{tag('visualize')} Generated {out}")
     return out
@@ -176,6 +184,8 @@ def chart_maturity_radar(recordings: dict, images_dir: Path) -> Path | None:
 
 def chart_stakeholder_breakdown(recordings: dict, images_dir: Path) -> Path | None:
     """Horizontal bar chart: companies by talk count, color = role type."""
+    import plotly.graph_objects as go
+
     items = recordings.get("stakeholder_map", [])
     if not items:
         return None
@@ -189,7 +199,7 @@ def chart_stakeholder_breakdown(recordings: dict, images_dir: Path) -> Path | No
 
     # Sort by talk_count descending, take top 15
     sorted_items = sorted(items, key=lambda x: x.get("talk_count", 0), reverse=True)[:15]
-    labels = [it["company"] for it in sorted_items]
+    labels = [it.get("company", "") for it in sorted_items]
     values = [it.get("talk_count", 0) for it in sorted_items]
     colors = [role_colors.get(it.get("role", "vendor"), "#BAB0AC") for it in sorted_items]
 
@@ -220,7 +230,7 @@ def generate_charts(config: Config) -> list[Path]:
     # Agenda charts
     agenda_path = data_dir / "analysis_agenda.json"
     if agenda_path.exists():
-        agenda = json.loads(agenda_path.read_text())
+        agenda = load_json_file(agenda_path)
         for chart_fn in [chart_topic_frequency, chart_company_presence, chart_track_distribution]:
             result = chart_fn(agenda, images_dir)
             if result:
@@ -229,7 +239,7 @@ def generate_charts(config: Config) -> list[Path]:
     # Ranking chart
     ranking_path = data_dir / "analysis_ranking.json"
     if ranking_path.exists():
-        ranking = json.loads(ranking_path.read_text())
+        ranking = load_json_file(ranking_path)
         if isinstance(ranking, list):
             result = chart_cluster_relevance(ranking, images_dir)
             if result:
@@ -238,8 +248,8 @@ def generate_charts(config: Config) -> list[Path]:
     # Recording-based charts (maturity + stakeholders)
     recordings_path = data_dir / "analysis_recordings.json"
     if recordings_path.exists():
-        recordings = json.loads(recordings_path.read_text())
-        for chart_fn in [chart_maturity_radar, chart_stakeholder_breakdown]:
+        recordings = load_json_file(recordings_path)
+        for chart_fn in [chart_maturity_strip, chart_stakeholder_breakdown]:
             result = chart_fn(recordings, images_dir)
             if result:
                 generated.append(result)

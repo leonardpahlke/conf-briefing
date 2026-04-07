@@ -3,12 +3,13 @@
 import json
 import tomllib
 from pathlib import Path
-from urllib.parse import urlparse
 
 import requests
 
+from conf_briefing.collect.providers import resolve_provider
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
+from conf_briefing.io import load_json_file
 
 # Map URL domain patterns to scraper modules.
 # Each scraper must expose: scrape_schedule(url: str) -> list[dict]
@@ -19,15 +20,8 @@ PROVIDER_PATTERNS: list[tuple[str, str]] = [
 
 
 def _resolve_provider(url: str) -> tuple[str, str] | None:
-    """Match a URL to a schedule provider.
-
-    Returns (provider_name, module_path) or None.
-    """
-    hostname = urlparse(url).hostname or ""
-    for domain, module in PROVIDER_PATTERNS:
-        if hostname.endswith(domain):
-            return domain, module
-    return None
+    """Match a URL to a schedule provider."""
+    return resolve_provider(url, PROVIDER_PATTERNS)
 
 
 def _scrape_from_provider(url: str, cache_dir: Path | None = None) -> list[dict]:
@@ -66,7 +60,7 @@ def load_from_file(path: str | Path) -> list[dict]:
         with open(path, "rb") as f:
             data = tomllib.load(f)
         return data.get("sessions", [])
-    return json.loads(path.read_text())
+    return load_json_file(path)
 
 
 def coerce_session(raw: dict) -> dict:

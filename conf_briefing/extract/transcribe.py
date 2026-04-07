@@ -7,6 +7,7 @@ from pathlib import Path
 
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
+from conf_briefing.io import load_json_file
 
 
 def transcribe_video(
@@ -36,8 +37,8 @@ def transcribe_video(
     meta_path = video_path.parent / f"{video_id}.meta.json"
     if meta_path.exists():
         try:
-            title = json.loads(meta_path.read_text()).get("title", "")
-        except (json.JSONDecodeError, OSError):
+            title = load_json_file(meta_path).get("title", "")
+        except (ValueError, OSError):
             pass
 
     transcript = {
@@ -102,8 +103,8 @@ def _build_whisperx_output(
     title = ""
     meta_path = video_path.parent / f"{video_id}.meta.json"
     if meta_path.exists():
-        with contextlib.suppress(json.JSONDecodeError, OSError):
-            title = json.loads(meta_path.read_text()).get("title", "")
+        with contextlib.suppress(ValueError, OSError):
+            title = load_json_file(meta_path).get("title", "")
 
     duration = segments[-1]["end"] if segments else 0
 
@@ -184,6 +185,11 @@ def transcribe_all(
 
     from faster_whisper import WhisperModel
 
+    # ROCm: ctranslate2 has no ROCm support, so faster-whisper runs on CPU
+    if device == "rocm":
+        device = "cpu"
+        compute_type = "int8"
+
     with console.status(f"{tag('whisper')} Loading model {model_name}..."):
         t0 = time.monotonic()
         model = WhisperModel(model_name, device=device, compute_type=compute_type)
@@ -225,6 +231,7 @@ def transcribe_all_whisperx(
     # NOTE: Python's C-level warning filter uses pattern.match() (anchored at
     # start of string). pyannote's torchcodec warning starts with '\n', so we
     # need (?s) (DOTALL) to let '.' match newlines, otherwise the filter fails.
+    _old_tqdm_disable = os.environ.get("TQDM_DISABLE")
     os.environ["TQDM_DISABLE"] = "1"
     warnings.filterwarnings("ignore", message=r"(?s).*torchcodec.*")
     warnings.filterwarnings("ignore", message=r"(?s).*libnvrtc.*")
@@ -291,6 +298,7 @@ def transcribe_all_whisperx(
         return existing
 
     model_name = config.extract.whisper_model
+    language = config.extract.language
     hf_token = os.environ.get("HF_TOKEN", "")
     can_diarize = diarize and bool(hf_token)
 
@@ -331,7 +339,7 @@ def transcribe_all_whisperx(
             model_name,
             asr_device,
             compute_type=asr_compute,
-            language="en",
+            language=language,
             asr_options={
                 "beam_size": 5,
                 "initial_prompt": initial_prompt or None,
@@ -344,7 +352,7 @@ def transcribe_all_whisperx(
 
     with console.status(f"{tag('whisperx')} Loading alignment model..."):
         align_model, align_metadata = whisperx.load_align_model(
-            language_code="en", device=torch_device
+            language_code=language, device=torch_device
         )
     console.print(f"{tag('whisperx')} Alignment model loaded.")
 
@@ -378,7 +386,7 @@ def transcribe_all_whisperx(
 
             # 1. Transcribe with batched inference
             result = asr_model.transcribe(audio, batch_size=batch_size)
-            language = result.get("language", "en")
+            detected_language = result.get("language", "en")
 
             # 2. Word-level alignment
             result = whisperx.align(
@@ -400,7 +408,7 @@ def transcribe_all_whisperx(
 
             # 4. Build and save output
             out = _build_whisperx_output(
-                result, vf, output_dir, model_name, language, diarized
+                result, vf, output_dir, model_name, detected_language, diarized
             )
 
             elapsed = time.monotonic() - t0
@@ -411,6 +419,12 @@ def transcribe_all_whisperx(
     # Cleanup
     del asr_model, align_model, diarize_model
     _free_gpu()
+
+    # Restore TQDM_DISABLE env var
+    if _old_tqdm_disable is None:
+        os.environ.pop("TQDM_DISABLE", None)
+    else:
+        os.environ["TQDM_DISABLE"] = _old_tqdm_disable
 
     console.print(f"{tag('whisperx')} Transcribed {total} video(s).")
     return results

@@ -8,8 +8,8 @@ pattern from schedule.py.
 import importlib
 import json
 from pathlib import Path
-from urllib.parse import urlparse
 
+from conf_briefing.collect.providers import resolve_provider
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
 
@@ -24,15 +24,8 @@ VIDEO_PROVIDER_PATTERNS: list[tuple[str, str]] = [
 
 
 def _resolve_provider(url: str) -> tuple[str, str] | None:
-    """Match a URL to a video provider.
-
-    Returns (provider_name, module_path) or None.
-    """
-    hostname = urlparse(url).hostname or ""
-    for domain, module in VIDEO_PROVIDER_PATTERNS:
-        if hostname.endswith(domain):
-            return domain, module
-    return None
+    """Match a URL to a video provider."""
+    return resolve_provider(url, VIDEO_PROVIDER_PATTERNS)
 
 
 def fetch_recordings(config: Config) -> Path:

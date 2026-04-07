@@ -1,19 +1,12 @@
 """Render Jinja2 templates into markdown reports."""
 
-import json
 from pathlib import Path
 
 import jinja2
 
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
-
-
-def _load_json(path: Path) -> dict | list | None:
-    """Load JSON file if it exists."""
-    if path.exists():
-        return json.loads(path.read_text())
-    return None
+from conf_briefing.io import load_json_file
 
 
 def render_reports(config: Config) -> list[Path]:
@@ -34,14 +27,18 @@ def render_reports(config: Config) -> list[Path]:
     )
 
     # Load all analysis data
-    agenda = _load_json(data_dir / "analysis_agenda.json") or {}
-    ranking = _load_json(data_dir / "analysis_ranking.json") or []
-    recordings = _load_json(data_dir / "analysis_recordings.json") or {}
-    talks = _load_json(data_dir / "analysis_talks.json") or []
+    def _load(name: str) -> dict | list | None:
+        p = data_dir / name
+        return load_json_file(p) if p.exists() else None
+
+    agenda = _load("analysis_agenda.json") or {}
+    ranking = _load("analysis_ranking.json") or []
+    recordings = _load("analysis_recordings.json") or {}
+    talks = _load("analysis_talks.json") or []
 
     context = {
         "conference_name": config.conference.name,
-        "schedule": _load_json(data_dir / "schedule_clean.json") or [],
+        "schedule": _load("schedule_clean.json") or [],
         "agenda": agenda,
         "ranking": ranking,
         "recordings": recordings,

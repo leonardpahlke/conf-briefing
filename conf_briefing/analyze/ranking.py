@@ -6,6 +6,7 @@ from pathlib import Path
 from conf_briefing.analyze.llm import query_llm_json
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
+from conf_briefing.io import load_json_file
 
 SYSTEM_PROMPT = """\
 You are a conference analysis expert. You rank and evaluate topic clusters \
@@ -39,7 +40,7 @@ Be specific about why each cluster is or isn't relevant. \
 Recommend the top 3-5 talks per cluster."""
 
 
-def rank_clusters(config: Config) -> Path:
+def rank_clusters(config: Config) -> Path | None:
     """Rank agenda clusters by relevance."""
     data_dir = config.data_dir
     agenda_path = data_dir / "analysis_agenda.json"
@@ -47,14 +48,14 @@ def rank_clusters(config: Config) -> Path:
 
     if not agenda_path.exists():
         console.print(f"{tag('analyze')} No agenda analysis found, skipping ranking.")
-        return out_path
+        return None
 
-    agenda = json.loads(agenda_path.read_text())
+    agenda = load_json_file(agenda_path)
     clusters = agenda.get("clusters", [])
 
     if not clusters:
         console.print(f"{tag('analyze')} No clusters found in agenda analysis, skipping ranking.")
-        return out_path
+        return None
 
     eval_topics = config.analyze.eval_topics
 

@@ -7,6 +7,7 @@ Provider interface:
 
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from conf_briefing.console import console, progress_bar, tag
@@ -14,7 +15,7 @@ from conf_briefing.console import console, progress_bar, tag
 
 def _validate_video_id(vid: str) -> str:
     """Validate a YouTube video ID."""
-    if not re.fullmatch(r"[a-zA-Z0-9_-]{1,20}", vid):
+    if not re.fullmatch(r"[a-zA-Z0-9_-]{11}", vid):
         raise ValueError(f"Invalid video ID: {vid!r}")
     return vid
 
@@ -66,7 +67,7 @@ def _ensure_metadata(video_id: str, output_dir: Path) -> None:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
             if info:
                 _write_metadata(video_id, info, output_dir)
-    except Exception:
+    except (yt_dlp.utils.DownloadError, OSError):
         # Non-fatal: metadata is best-effort for cached videos
         pass
 
@@ -79,6 +80,7 @@ def _download_single(video_id: str, output_dir: Path) -> Path:
     """
     import yt_dlp
 
+    _validate_video_id(video_id)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Check cache
@@ -117,18 +119,34 @@ def download_videos(
     None means the download failed.
     """
     output_dir = Path(output_dir)
+
+    # Validate video IDs upfront, skip invalid ones
+    valid_ids: list[str] = []
+    for vid in video_ids:
+        try:
+            _validate_video_id(vid)
+            valid_ids.append(vid)
+        except ValueError:
+            console.print(f"  {tag('download')} [yellow]Skipping invalid video ID: {vid!r}[/yellow]")
+
     results: list[tuple[str, Path | None]] = []
 
     with progress_bar() as pb:
-        task = pb.add_task(f"{tag('download')} Downloading videos", total=len(video_ids))
-        for vid in video_ids:
-            try:
-                path = _download_single(vid, output_dir)
-                results.append((vid, path))
-                pb.update(task, advance=1, description=f"{tag('download')} {vid}")
-            except Exception as e:
-                results.append((vid, None))
-                pb.update(task, advance=1, description=f"{tag('download')} {vid} [red]failed[/red]")
-                console.print(f"  {tag('download')} [red]{vid} — {e}[/red]")
+        task = pb.add_task(f"{tag('download')} Downloading videos", total=len(valid_ids))
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                executor.submit(_download_single, vid, output_dir): vid
+                for vid in valid_ids
+            }
+            for future in as_completed(futures):
+                vid = futures[future]
+                try:
+                    path = future.result()
+                    results.append((vid, path))
+                    pb.update(task, advance=1, description=f"{tag('download')} {vid}")
+                except Exception as e:
+                    results.append((vid, None))
+                    pb.update(task, advance=1, description=f"{tag('download')} {vid} [red]failed[/red]")
+                    console.print(f"  {tag('download')} [red]{vid} — {e}[/red]")
 
     return results

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from conf_briefing.config import MIN_VIDEO_DURATION_SEC, Config
 from conf_briefing.console import console, tag
+from conf_briefing.io import load_json_file
 
 
 def clean_text(text: str) -> str:
@@ -46,7 +47,7 @@ def normalize_schedule(config: Config) -> Path:
         console.print(f"{tag('clean')} No schedule.json found, skipping normalization.")
         return schedule_path
 
-    sessions = json.loads(schedule_path.read_text())
+    sessions = load_json_file(schedule_path)
     cleaned = [normalize_session(s) for s in sessions]
 
     # Deduplicate by title
@@ -171,7 +172,7 @@ def match_transcripts(config: Config) -> Path:
         console.print(f"{tag('clean')} No cleaned schedule found, skipping transcript matching.")
         return out_path
 
-    sessions = json.loads(schedule_path.read_text())
+    sessions = load_json_file(schedule_path)
 
     if not transcripts_dir.exists():
         console.print(f"{tag('clean')} No transcripts directory found, skipping matching.")
@@ -179,12 +180,15 @@ def match_transcripts(config: Config) -> Path:
         out_path.write_text(json.dumps(sessions, indent=2, ensure_ascii=False))
         return out_path
 
-    # Load all transcripts
+    # Load all transcripts and their segments in a single pass
     transcripts = {}
+    transcripts_segments: dict[str, list[dict]] = {}
     for tf in transcripts_dir.glob("*.json"):
-        data = json.loads(tf.read_text())
+        data = load_json_file(tf)
         if "video_id" in data:
             transcripts[data["video_id"]] = data
+            if "segments" in data:
+                transcripts_segments[data["video_id"]] = data["segments"]
 
     console.print(
         f"{tag('clean')} Matching {len(transcripts)} transcripts to {len(sessions)} sessions..."
@@ -197,6 +201,7 @@ def match_transcripts(config: Config) -> Path:
 
     # Filter out short videos (highlight reels, teasers) before matching
     skipped_short = 0
+    unmatched: list[dict] = []
 
     matched_count = 0
     for vid, transcript in transcripts.items():
@@ -224,8 +229,8 @@ def match_transcripts(config: Config) -> Path:
             sessions[best_idx]["duration_sec"] = duration
             matched_count += 1
         else:
-            # Unmatched transcript — add as standalone entry
-            sessions.append(
+            # Collect unmatched transcripts separately to avoid mutating during iteration
+            unmatched.append(
                 {
                     "title": title or f"Recording {vid}",
                     "abstract": "",
@@ -240,14 +245,7 @@ def match_transcripts(config: Config) -> Path:
                 }
             )
 
-    # Load transcript segments for slide alignment
-    transcripts_segments: dict[str, list[dict]] = {}
-    if transcripts_dir.exists():
-        for tf in transcripts_dir.glob("*.json"):
-            tdata = json.loads(tf.read_text())
-            vid = tdata.get("video_id")
-            if vid and "segments" in tdata:
-                transcripts_segments[vid] = tdata["segments"]
+    sessions.extend(unmatched)
 
     # Match slide data to sessions by video_id
     slides_dir = data_dir / "slides"
@@ -255,7 +253,7 @@ def match_transcripts(config: Config) -> Path:
     if slides_dir.exists():
         slides_data = {}
         for sf in slides_dir.glob("*.json"):
-            sdata = json.loads(sf.read_text())
+            sdata = load_json_file(sf)
             vid = sdata.get("video_id")
             if vid:
                 slides_data[vid] = sdata

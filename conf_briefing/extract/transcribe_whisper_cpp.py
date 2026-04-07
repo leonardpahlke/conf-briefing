@@ -8,6 +8,7 @@ from pathlib import Path
 
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
+from conf_briefing.io import load_json_file
 
 
 def _convert_to_wav(video_path: Path, wav_path: Path) -> None:
@@ -25,7 +26,7 @@ def _convert_to_wav(video_path: Path, wav_path: Path) -> None:
         "-y",
         str(wav_path),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     if result.returncode != 0:
         raise RuntimeError(f"ffmpeg conversion failed: {result.stderr[:500]}")
 
@@ -107,7 +108,7 @@ def transcribe_video_wcpp(
         if initial_prompt:
             cmd.extend(["--prompt", initial_prompt])
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
         if result.returncode != 0:
             raise RuntimeError(f"whisper-cpp failed: {result.stderr[:500]}")
 
@@ -116,15 +117,15 @@ def transcribe_video_wcpp(
         if not wcpp_json_path.exists():
             raise RuntimeError(f"whisper-cpp did not produce output at {wcpp_json_path}")
 
-        wcpp_data = json.loads(wcpp_json_path.read_text())
+        wcpp_data = load_json_file(wcpp_json_path)
 
     # Load title from metadata sidecar written during download
     title = ""
     meta_path = video_path.parent / f"{video_id}.meta.json"
     if meta_path.exists():
         try:
-            title = json.loads(meta_path.read_text()).get("title", "")
-        except (json.JSONDecodeError, OSError):
+            title = load_json_file(meta_path).get("title", "")
+        except (ValueError, OSError):
             pass
 
     # Parse into our schema

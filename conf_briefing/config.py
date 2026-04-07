@@ -2,7 +2,7 @@
 
 import os
 import tomllib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields as dataclass_fields
 from pathlib import Path
 
 from conf_briefing.console import console, tag
@@ -50,6 +50,7 @@ class ExtractConfig:
     initial_prompt: str = _DEFAULT_INITIAL_PROMPT  # domain-specific terminology for transcription
     vlm_model: str = ""  # empty = skip VLM; e.g. "gemma3:12b"
     diarize: bool = True  # enable speaker diarization (requires whisperx + HF_TOKEN)
+    language: str = "en"  # language code for transcription
 
 
 @dataclass
@@ -81,6 +82,21 @@ class Config:
     data_dir: Path = Path("data")
 
 
+def _field_names(cls) -> set[str]:
+    """Return the set of field names for a dataclass."""
+    return {f.name for f in dataclass_fields(cls)}
+
+
+def _build_dataclass(cls, raw: dict):
+    """Build a dataclass instance, passing only keys that match field names.
+
+    Missing keys use the dataclass field defaults.
+    """
+    valid_keys = _field_names(cls)
+    filtered = {k: v for k, v in raw.items() if k in valid_keys}
+    return cls(**filtered)
+
+
 def load_config(path: str | Path) -> Config:
     """Load configuration from a TOML file.
 
@@ -99,7 +115,7 @@ def load_config(path: str | Path) -> Config:
     data_dir.mkdir(parents=True, exist_ok=True)
 
     # Warn about unknown top-level keys
-    known_sections = {"conference", "extract", "llm", "query", "analyze"}
+    known_sections = _field_names(Config) - {"data_dir"}
     for key in raw:
         if key not in known_sections:
             console.print(
@@ -110,70 +126,39 @@ def load_config(path: str | Path) -> Config:
     conf_raw = raw.get("conference", {})
     _warn_unknown(
         conf_raw,
-        {"name", "schedule", "schedule_url", "sched_api_key", "recordings"},
+        _field_names(ConferenceConfig) | {"recordings"},
         "conference",
     )
 
     recordings_raw = conf_raw.get("recordings", {})
     _warn_unknown(
         recordings_raw,
-        {"source_url", "video_ids", "video_format"},
+        _field_names(RecordingsConfig),
         "conference.recordings",
     )
-    recordings = RecordingsConfig(
-        source_url=recordings_raw.get("source_url", ""),
-        video_ids=recordings_raw.get("video_ids", []),
-        video_format=recordings_raw.get("video_format", "mp4"),
-    )
+    recordings = _build_dataclass(RecordingsConfig, recordings_raw)
 
-    conference = ConferenceConfig(
-        name=conf_raw.get("name", "Conference"),
-        schedule=conf_raw.get("schedule", ""),
-        schedule_url=conf_raw.get("schedule_url", ""),
-        sched_api_key=conf_raw.get("sched_api_key", "") or os.environ.get("SCHED_API_KEY", ""),
-        recordings=recordings,
-    )
+    conf_flat = {k: v for k, v in conf_raw.items() if k != "recordings"}
+    conference = _build_dataclass(ConferenceConfig, conf_flat)
+    conference.recordings = recordings
+    if not conference.sched_api_key:
+        conference.sched_api_key = os.environ.get("SCHED_API_KEY", "")
 
     extract_raw = raw.get("extract", {})
-    _warn_unknown(
-        extract_raw,
-        {
-            "whisper_model", "device", "compute_type", "scene_threshold",
-            "initial_prompt", "vlm_model", "diarize",
-        },
-        "extract",
-    )
-    extract = ExtractConfig(
-        whisper_model=extract_raw.get("whisper_model", "deepdml/faster-whisper-large-v3-turbo-ct2"),
-        device=extract_raw.get("device", "auto"),
-        compute_type=extract_raw.get("compute_type", "auto"),
-        scene_threshold=extract_raw.get("scene_threshold", 27.0),
-        initial_prompt=extract_raw.get("initial_prompt", _DEFAULT_INITIAL_PROMPT),
-        vlm_model=extract_raw.get("vlm_model", ""),
-        diarize=extract_raw.get("diarize", True),
-    )
+    _warn_unknown(extract_raw, _field_names(ExtractConfig), "extract")
+    extract = _build_dataclass(ExtractConfig, extract_raw)
 
     llm_raw = raw.get("llm", {})
-    _warn_unknown(llm_raw, {"model", "ollama_base_url", "num_parallel"}, "llm")
-    llm = LLMConfig(
-        model=llm_raw.get("model", "qwen3:14b"),
-        ollama_base_url=llm_raw.get("ollama_base_url", "http://localhost:11434"),
-        num_parallel=llm_raw.get("num_parallel", 2),
-    )
+    _warn_unknown(llm_raw, _field_names(LLMConfig), "llm")
+    llm = _build_dataclass(LLMConfig, llm_raw)
 
     query_raw = raw.get("query", {})
-    _warn_unknown(query_raw, {"embedding_model", "ollama_base_url", "top_k"}, "query")
-    query = QueryConfig(
-        embedding_model=query_raw.get("embedding_model", "nomic-embed-text"),
-        ollama_base_url=query_raw.get("ollama_base_url", "http://localhost:11434"),
-        top_k=query_raw.get("top_k", 15),
-    )
+    _warn_unknown(query_raw, _field_names(QueryConfig), "query")
+    query = _build_dataclass(QueryConfig, query_raw)
 
     analyze_raw = raw.get("analyze", {})
-    _warn_unknown(analyze_raw, {"eval_topics"}, "analyze")
-    analyze = AnalyzeConfig(
-        eval_topics=analyze_raw.get("eval_topics", list(_DEFAULT_EVAL_TOPICS)),
-    )
+    _warn_unknown(analyze_raw, _field_names(AnalyzeConfig), "analyze")
+    analyze = _build_dataclass(AnalyzeConfig, analyze_raw)
 
     return Config(
         conference=conference,

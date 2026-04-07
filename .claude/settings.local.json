@@ -125,7 +125,8 @@
       "Bash(nm:*)",
       "WebFetch(domain:discourse.nixos.org)",
       "WebFetch(domain:lunnova.dev)",
-      "Bash(du:*)"
+      "Bash(du:*)",
+      "Bash(do python:*)"
     ]
   }
 }

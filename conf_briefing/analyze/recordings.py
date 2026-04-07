@@ -16,6 +16,11 @@ from conf_briefing.analyze.schemas import (
 )
 from conf_briefing.config import MIN_VIDEO_DURATION_SEC, Config
 from conf_briefing.console import console, progress_bar, tag
+from conf_briefing.io import load_json_file
+
+# --- Magic numbers ---
+_MAX_TRANSCRIPT_CHARS = 30_000
+_MIN_TRANSCRIPT_CHARS = 100
 
 SYSTEM_PROMPT = """\
 You are a conference talk analyst. Extract key insights from transcripts as JSON. \
@@ -94,7 +99,7 @@ named technologies, e.g. "Kueue competes_with Volcano", "Cilium replaces kube-pr
 def analyze_single_talk(config: Config, session: dict) -> dict | None:
     """Analyze a single talk transcript via 2 focused LLM calls."""
     transcript = session.get("transcript", "")
-    if not transcript or len(transcript) < 100:
+    if not transcript or len(transcript) < _MIN_TRANSCRIPT_CHARS:
         return None
 
     # Skip short videos (highlight reels, teasers)
@@ -129,26 +134,29 @@ def analyze_single_talk(config: Config, session: dict) -> dict | None:
         "title": session["title"],
         "speakers": speakers,
         "track": session.get("track", ""),
-        "transcript": transcript[:30000],
+        "transcript": transcript[:_MAX_TRANSCRIPT_CHARS],
     }
 
-    # Call 1: Core content
-    core_result = query_llm_json(
-        config,
-        SYSTEM_PROMPT,
-        TALK_CORE_PROMPT.format(**fmt_kwargs),
-        max_tokens=4096,
-        schema=TalkCore,
-    )
-
-    # Call 2: Signals and relationships
-    signals_result = query_llm_json(
-        config,
-        SYSTEM_PROMPT,
-        TALK_SIGNALS_PROMPT.format(**fmt_kwargs),
-        max_tokens=4096,
-        schema=TalkSignals,
-    )
+    # Fire both LLM calls in parallel (independent inputs)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        core_future = pool.submit(
+            query_llm_json,
+            config,
+            SYSTEM_PROMPT,
+            TALK_CORE_PROMPT.format(**fmt_kwargs),
+            max_tokens=4096,
+            schema=TalkCore,
+        )
+        signals_future = pool.submit(
+            query_llm_json,
+            config,
+            SYSTEM_PROMPT,
+            TALK_SIGNALS_PROMPT.format(**fmt_kwargs),
+            max_tokens=4096,
+            schema=TalkSignals,
+        )
+        core_result = core_future.result()
+        signals_result = signals_future.result()
 
     # Merge into single dict
     merged = {**core_result, **signals_result}
@@ -276,41 +284,32 @@ def synthesize_analyses(config: Config, analyses: list[dict]) -> dict:
         "analyses_json": analyses_json,
     }
 
-    # Call 1: Narrative + themes + problems
-    narrative_result = query_llm_json(
-        config,
-        SYSTEM_PROMPT,
-        SYNTH_NARRATIVE_PROMPT.format(**fmt_kwargs),
-        max_tokens=8192,
-        schema=SynthNarrative,
-    )
-
-    # Call 2: Emerging tech + relationships
-    signals_result = query_llm_json(
-        config,
-        SYSTEM_PROMPT,
-        SYNTH_SIGNALS_PROMPT.format(**fmt_kwargs),
-        max_tokens=4096,
-        schema=SynthSignals,
-    )
-
-    # Call 3: Tensions + maturity landscape
-    tensions_result = query_llm_json(
-        config,
-        SYSTEM_PROMPT,
-        SYNTH_TENSIONS_PROMPT.format(**fmt_kwargs),
-        max_tokens=6144,
-        schema=SynthTensions,
-    )
-
-    # Call 4: Recommended actions
-    actions_result = query_llm_json(
-        config,
-        SYSTEM_PROMPT,
-        SYNTH_ACTIONS_PROMPT.format(**fmt_kwargs),
-        max_tokens=4096,
-        schema=SynthActions,
-    )
+    # Fire all 4 synthesis calls in parallel (independent inputs)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        narrative_future = pool.submit(
+            query_llm_json, config, SYSTEM_PROMPT,
+            SYNTH_NARRATIVE_PROMPT.format(**fmt_kwargs),
+            max_tokens=8192, schema=SynthNarrative,
+        )
+        signals_future = pool.submit(
+            query_llm_json, config, SYSTEM_PROMPT,
+            SYNTH_SIGNALS_PROMPT.format(**fmt_kwargs),
+            max_tokens=4096, schema=SynthSignals,
+        )
+        tensions_future = pool.submit(
+            query_llm_json, config, SYSTEM_PROMPT,
+            SYNTH_TENSIONS_PROMPT.format(**fmt_kwargs),
+            max_tokens=6144, schema=SynthTensions,
+        )
+        actions_future = pool.submit(
+            query_llm_json, config, SYSTEM_PROMPT,
+            SYNTH_ACTIONS_PROMPT.format(**fmt_kwargs),
+            max_tokens=4096, schema=SynthActions,
+        )
+        narrative_result = narrative_future.result()
+        signals_result = signals_future.result()
+        tensions_result = tensions_future.result()
+        actions_result = actions_future.result()
 
     # Merge all results
     merged = {**narrative_result, **signals_result, **tensions_result, **actions_result}
@@ -325,7 +324,7 @@ def synthesize_analyses(config: Config, analyses: list[dict]) -> dict:
     return merged
 
 
-def analyze_recordings(config: Config) -> Path:
+def analyze_recordings(config: Config) -> Path | None:
     """Analyze all recording transcripts."""
     data_dir = config.data_dir
     matched_path = data_dir / "matched.json"
@@ -337,14 +336,14 @@ def analyze_recordings(config: Config) -> Path:
 
     if not matched_path.exists():
         console.print(f"{tag('analyze')} No data found, skipping recording analysis.")
-        return out_path
+        return None
 
-    sessions = json.loads(matched_path.read_text())
+    sessions = load_json_file(matched_path)
     sessions_with_transcripts = [s for s in sessions if s.get("transcript")]
 
     if not sessions_with_transcripts:
         console.print(f"{tag('analyze')} No transcripts found, skipping recording analysis.")
-        return out_path
+        return None
 
     # Filter non-analytical sessions
     skipped = [s for s in sessions_with_transcripts if _is_non_analytical(s.get("title", ""))]
@@ -363,6 +362,7 @@ def analyze_recordings(config: Config) -> Path:
 
     # Analyze individual talks (parallel)
     talk_analyses = []
+    failed_count = 0
     with progress_bar() as pb:
         task = pb.add_task(
             f"{tag('analyze')} Analyzing talks", total=len(sessions_with_transcripts)
@@ -382,6 +382,7 @@ def analyze_recordings(config: Config) -> Path:
                         talk_analyses.append(result)
                     pb.update(task, advance=1, description=f"{tag('analyze')} {title}")
                 except Exception as e:
+                    failed_count += 1
                     session = futures[future]
                     title = session["title"][:50]
                     pb.update(
@@ -390,6 +391,17 @@ def analyze_recordings(config: Config) -> Path:
                         description=f"{tag('analyze')} {title} [red]failed[/red]",
                     )
                     console.print(f"  {tag('analyze')} [red]{title} — {e}[/red]")
+
+    if failed_count:
+        total_attempted = len(sessions_with_transcripts)
+        console.print(
+            f"{tag('analyze')} [yellow]{failed_count}/{total_attempted} talks failed analysis[/yellow]"
+        )
+        if failed_count > total_attempted / 2:
+            console.print(
+                f"{tag('analyze')} [red bold]Warning: >50% of talks failed. "
+                f"Check Ollama connectivity and model availability.[/red bold]"
+            )
 
     # Apply entity canonicalization
     from conf_briefing.analyze.entities import canonicalize_analysis

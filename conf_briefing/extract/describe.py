@@ -10,6 +10,7 @@ import ollama
 
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
+from conf_briefing.io import load_json_file
 
 _VLM_PROMPT = (
     "Describe the technical content of this conference presentation slide. "
@@ -54,7 +55,8 @@ def describe_slide(client: ollama.Client, model: str, image_path: Path) -> str:
                 )
                 time.sleep(delay)
 
-    raise last_exc  # type: ignore[misc]
+    assert last_exc is not None
+    raise last_exc
 
 
 def describe_all_slides(config: Config) -> list[Path]:
@@ -100,7 +102,7 @@ def describe_all_slides(config: Config) -> list[Path]:
     total_files = len(slide_jsons)
 
     for fi, json_path in enumerate(slide_jsons, 1):
-        data = json.loads(json_path.read_text())
+        data = load_json_file(json_path)
         slides = data.get("slides", [])
 
         # Count slides needing descriptions

@@ -180,6 +180,14 @@ def main():
         required=True,
         help="Path to event configuration file (e.g. events/kubecon-eu-2026.toml)",
     )
+    parser.add_argument(
+        "-V",
+        "--verbose",
+        action="store_true",
+        default=False,
+        dest="global_verbose",
+        help="Show full tracebacks on errors",
+    )
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -244,12 +252,16 @@ def main():
 
     try:
         commands[args.command](args)
-    except (FileNotFoundError, ValueError, RuntimeError, ConnectionError, OSError) as e:
-        err_console.print(f"[red bold]Error:[/red bold] {e}")
-        sys.exit(1)
     except KeyboardInterrupt:
         err_console.print("\n[dim]Interrupted.[/dim]")
         sys.exit(130)
+    except Exception as e:
+        if args.global_verbose:
+            err_console.print_exception()
+        else:
+            err_console.print(f"[red bold]Error:[/red bold] {e}")
+            err_console.print("[dim]Use --verbose for full traceback.[/dim]")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

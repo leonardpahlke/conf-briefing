@@ -58,28 +58,6 @@ class TalkSignals(BaseModel):
     relationships: list[Relationship]
 
 
-class TalkAnalysis(BaseModel):
-    """Full talk analysis (merged from TalkCore + TalkSignals)."""
-
-    title: str = ""
-    key_takeaways: list[str] = []
-    qa_highlights: list[str] = []
-    problems_discussed: list[str] = []
-    tools_and_projects: list[str] = []
-    summary: str = ""
-    evidence_quality: Literal[
-        "production", "proof_of_concept", "theoretical", "vendor_demo"
-    ] = "theoretical"
-    speaker_perspective: Literal[
-        "practitioner", "vendor", "maintainer", "academic"
-    ] = "practitioner"
-    maturity_assessments: list[MaturityAssessment] = []
-    caveats_and_concerns: list[str] = []
-    technology_stance: list[TechnologyStance] = []
-    relationships: list[Relationship] = []
-    references: list[str] = []
-
-
 # --- Synthesis sub-models (defined before split schemas that reference them) ---
 
 
@@ -163,12 +141,3 @@ class SynthActions(BaseModel):
     recommended_actions: list[RecommendedAction] = Field(min_length=1)
 
 
-class SynthesisResult(BaseModel):
-    cross_cutting_themes: list[CrossCuttingTheme] = []
-    emerging_technologies: list[EmergingTechnology] = []
-    common_problems: list[str] = []
-    narrative: str = ""
-    tensions: list[Tension] = []
-    maturity_landscape: list[MaturityLandscapeEntry] = []
-    recommended_actions: list[RecommendedAction] = []
-    technology_relationships: list[TechnologyRelationship] = []
