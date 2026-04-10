@@ -38,6 +38,7 @@
             pkgs.libGL # needed by opencv (libGL.so.1)
             pkgs.glib # needed by opencv (libgthread-2.0.so.0)
             pkgs.zstd.out # needed by ROCm torch (libzstd.so.1)
+            pkgs.zlib # needed by PyAV/ffmpeg (libz.so.1)
           ];
 
           shellHook = ''

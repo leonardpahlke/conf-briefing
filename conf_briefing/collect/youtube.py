@@ -23,18 +23,22 @@ def _validate_video_id(vid: str) -> str:
 def collect_video_ids(source_url: str) -> list[str]:
     """Extract video IDs from a YouTube playlist URL.
 
-    Uses requests to fetch the playlist page and extract video IDs from the HTML.
+    Uses yt-dlp with flat extraction to enumerate all playlist entries,
+    handling YouTube's pagination automatically.
     """
-    import requests
+    import yt_dlp
 
-    resp = requests.get(source_url, timeout=30)
-    resp.raise_for_status()
-    ids = re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', resp.text)
+    opts = {"extract_flat": True, "quiet": True, "no_warnings": True}
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(source_url, download=False)
+
+    entries = info.get("entries") or []
     # Deduplicate while preserving order
     seen: set[str] = set()
     unique: list[str] = []
-    for vid in ids:
-        if vid not in seen:
+    for entry in entries:
+        vid = entry.get("id", "")
+        if vid and vid not in seen:
             seen.add(vid)
             unique.append(vid)
     return unique

@@ -10,31 +10,39 @@ default:
 uv-sync:
     uv sync --extra scrape --extra extract
 
+# Packages to exclude from uv sync on ROCm — CUDA torch + nvidia runtime libs
+_rocm_exclude := "--no-install-package torch --no-install-package torchvision --no-install-package torchaudio --no-install-package triton --no-install-package torchcodec --no-install-package nvidia-cublas-cu12 --no-install-package nvidia-cuda-cupti-cu12 --no-install-package nvidia-cuda-nvrtc-cu12 --no-install-package nvidia-cuda-runtime-cu12 --no-install-package nvidia-cudnn-cu12 --no-install-package nvidia-cufft-cu12 --no-install-package nvidia-cufile-cu12 --no-install-package nvidia-curand-cu12 --no-install-package nvidia-cusolver-cu12 --no-install-package nvidia-cusparse-cu12 --no-install-package nvidia-cusparselt-cu12 --no-install-package nvidia-nccl-cu12 --no-install-package nvidia-nvjitlink-cu12 --no-install-package nvidia-nvtx-cu12"
+
 # Sync deps for AMD gfx1151 (Strix Halo) — deps only, no Ollama pull
 sync:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo ":: Syncing base dependencies (excluding torch packages)..."
-    uv sync --extra scrape --extra extract \
-        --no-install-package torch \
-        --no-install-package torchvision \
-        --no-install-package torchaudio \
-        --no-install-package triton
-    echo ":: Installing WhisperX + transformers..."
-    uv pip install --no-deps "whisperx>=3.3" "transformers>=4.40,<5"
-    echo ":: Installing gfx1151 PyTorch from TheROCk nightlies..."
     rocm_index="https://rocm.nightlies.amd.com/v2/gfx1151/"
+    echo ":: [1/5] Syncing base dependencies (excluding CUDA packages)..."
+    uv sync --extra scrape --extra extract --extra diarize \
+        {{ _rocm_exclude }}
+    echo ":: [2/5] Installing WhisperX + pyannote-audio + transformers (no-deps)..."
+    uv pip install --no-deps "whisperx>=3.3" "pyannote-audio>=3.3" "transformers>=4.40,<5"
+    echo ":: [3/5] Installing pyannote-audio runtime deps (no-deps to avoid CUDA torch)..."
+    uv pip install --no-deps \
+        pyannote.core pyannote.database pyannote.metrics pyannote.pipeline \
+        asteroid-filterbanks einops julius lightning lightning-utilities \
+        pytorch-metric-learning pytorch-lightning semver tensorboardx \
+        torch-audiomentations torch-pitch-shift torchmetrics primePy \
+        opentelemetry-exporter-otlp-proto-http opentelemetry-sdk colorlog omegaconf
+    echo ":: [4/5] Installing gfx1151 PyTorch + ROCm SDK from TheROCk nightlies..."
     uv pip install --no-deps \
         --index-url "$rocm_index" \
         "torch==2.9.1+rocm7.13.0a20260402" \
         "torchvision==0.24.0+rocm7.13.0a20260402" \
-        "torchaudio==2.10.0+rocm7.13.0a20260325" \
+        "torchaudio==2.9.0+rocm7.13.0a20260402" \
         "triton==3.5.1+rocm7.13.0a20260402"
-    echo ":: Installing ROCm SDK runtime..."
     uv pip install --index-url "$rocm_index" \
         rocm-sdk-core rocm-sdk-libraries-gfx1151 rocm
+    echo ":: [5/5] Fixing execstack and verifying..."
     python3 scripts/fix-execstack.py
     touch .rocm-torch
+    uv run --no-sync python -c "import torch; assert 'rocm' in torch.__version__, f'Expected ROCm torch, got {torch.__version__}'; print(f'  torch {torch.__version__} OK')"
     echo ":: Done. Run 'just pull-models <event> amd' to also pull Ollama models."
 
 # Sync deps + pull Ollama models (gpu: "cpu", "amd", or "nvidia")
@@ -50,33 +58,30 @@ pull-models event="kubecon-eu-2026" gpu="cpu":
             rm -f .rocm-torch
             ;;
         amd)
-            echo ":: Syncing base dependencies (excluding torch packages)..."
-            uv sync $extras \
-                --no-install-package torch \
-                --no-install-package torchvision \
-                --no-install-package torchaudio \
-                --no-install-package triton
-            echo ":: Installing WhisperX + transformers..."
-            # Pin transformers<5 to stay compatible with huggingface-hub in lockfile.
-            uv pip install --no-deps "whisperx>=3.3" "transformers>=4.40,<5"
-            echo ":: Installing gfx1151 PyTorch from TheROCk nightlies..."
-            # Upstream ROCm wheels lack gfx1151 support. TheROCk nightlies
-            # depend on rocm[libraries] which uv can't resolve, so --no-deps.
+            extras="$extras --extra diarize"
             rocm_index="https://rocm.nightlies.amd.com/v2/gfx1151/"
+            echo ":: Syncing base dependencies (excluding CUDA packages)..."
+            uv sync $extras \
+                {{ _rocm_exclude }}
+            echo ":: Installing WhisperX + pyannote-audio + transformers (no-deps)..."
+            uv pip install --no-deps "whisperx>=3.3" "pyannote-audio>=3.3" "transformers>=4.40,<5"
+            echo ":: Installing pyannote-audio runtime deps (no-deps)..."
+            uv pip install --no-deps \
+                pyannote.core pyannote.database pyannote.metrics pyannote.pipeline \
+                asteroid-filterbanks einops julius lightning lightning-utilities \
+                pytorch-metric-learning pytorch-lightning semver tensorboardx \
+                torch-audiomentations torch-pitch-shift torchmetrics primePy \
+                opentelemetry-exporter-otlp-proto-http opentelemetry-sdk colorlog omegaconf
+            echo ":: Installing gfx1151 PyTorch + ROCm SDK..."
             uv pip install --no-deps \
                 --index-url "$rocm_index" \
                 "torch==2.9.1+rocm7.13.0a20260402" \
                 "torchvision==0.24.0+rocm7.13.0a20260402" \
-                "torchaudio==2.10.0+rocm7.13.0a20260325" \
+                "torchaudio==2.9.0+rocm7.13.0a20260402" \
                 "triton==3.5.1+rocm7.13.0a20260402"
-            echo ":: Installing ROCm SDK runtime..."
             uv pip install --index-url "$rocm_index" \
                 rocm-sdk-core rocm-sdk-libraries-gfx1151 rocm
-            # NixOS blocks shared libraries with executable stacks. ctranslate2
-            # ships with RWE GNU_STACK — clear the execute bit so it can load.
             python3 scripts/fix-execstack.py
-            # Mark that torch was replaced — pipeline recipes use UV_NO_SYNC
-            # to prevent uv run from overwriting ROCm torch with CUDA torch.
             touch .rocm-torch
             ;;
         cpu)

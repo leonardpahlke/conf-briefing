@@ -248,6 +248,12 @@ def transcribe_all_whisperx(
     logging.getLogger("lightning_fabric").setLevel(logging.ERROR)
     logging.getLogger("lightning.pytorch.utilities.migration").setLevel(logging.ERROR)
 
+    # ROCm workaround: ctranslate2 (used by faster-whisper for ASR) crashes with
+    # "free(): invalid pointer" if torch's ROCm runtime is initialized first.
+    # Pre-initialize ctranslate2 by importing faster_whisper before torch.
+    if device == "rocm":
+        import faster_whisper as _  # noqa: F811
+
     import torch
 
     # Disable MIOpen (ROCm's cuDNN equivalent) to avoid HIPRTC JIT compilation.

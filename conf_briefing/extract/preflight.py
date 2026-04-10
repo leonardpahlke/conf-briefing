@@ -64,6 +64,13 @@ def _resolve_device(config_device: str, config_compute: str) -> tuple[str, str]:
 
     if device == "auto":
         try:
+            # ROCm workaround: ctranslate2's native allocator crashes with
+            # "free(): invalid pointer" if torch's ROCm/HIP runtime initializes
+            # first. Import ctranslate2 before torch to avoid this.
+            try:
+                import ctranslate2 as _  # noqa: F401
+            except ImportError:
+                pass
             import torch
 
             # Suppress noisy "(null): No such file or directory" from HIP

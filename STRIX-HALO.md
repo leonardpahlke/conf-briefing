@@ -20,7 +20,7 @@ Upstream PyTorch ROCm wheels don't include gfx1151. `HSA_OVERRIDE_GFX_VERSION` d
 3. **Pinned versions** (in `justfile`):
    - `torch==2.9.1+rocm7.13.0a20260402`
    - `torchvision==0.24.0+rocm7.13.0a20260402`
-   - `torchaudio==2.10.0+rocm7.13.0a20260325`
+   - `torchaudio==2.9.0+rocm7.13.0a20260402`
    - `triton==3.5.1+rocm7.13.0a20260402`
 
 4. **`uv run --no-sync`** for all run/lint/fmt commands — prevents uv from syncing to lockfile and overwriting the gfx1151 wheels.
