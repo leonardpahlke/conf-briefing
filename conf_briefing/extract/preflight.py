@@ -51,6 +51,52 @@ def _gpu_sanity_check() -> bool:
     return result.returncode == 0
 
 
+def _detect_gpu() -> tuple[str, str]:
+    """Detect GPU availability with stderr suppression for noisy runtimes.
+
+    Returns (device, gpu_name) where device is "cpu", "cuda", or "rocm".
+    """
+    try:
+        import contextlib
+        import os
+        import sys
+
+        # ROCm workaround: ctranslate2's native allocator crashes with
+        # "free(): invalid pointer" if torch's ROCm/HIP runtime initializes
+        # first. Import ctranslate2 before torch to avoid this.
+        with contextlib.suppress(ImportError):
+            import ctranslate2 as _  # noqa: F401
+        import torch
+
+        _stderr_fd = sys.stderr.fileno()
+        _old_stderr_fd = os.dup(_stderr_fd)
+        with open(os.devnull, "w") as _devnull:
+            os.dup2(_devnull.fileno(), _stderr_fd)
+            try:
+                cuda_available = torch.cuda.is_available()
+            finally:
+                os.dup2(_old_stderr_fd, _stderr_fd)
+                os.close(_old_stderr_fd)
+
+        if not cuda_available:
+            return "cpu", ""
+
+        # ROCm torch exposes GPUs via torch.cuda but sets torch.version.hip
+        is_rocm = bool(getattr(torch.version, "hip", None))
+        gpu_name = torch.cuda.get_device_name(0)
+
+        # Verify GPU actually works — catches unsupported architectures
+        # (e.g. RDNA4/gfx1151 on ROCm 6.2 which only supports RDNA3).
+        if _gpu_sanity_check():
+            device = "rocm" if is_rocm else "cuda"
+            return device, gpu_name
+
+        return "cpu", gpu_name
+
+    except ImportError:
+        return "cpu", ""
+
+
 def _resolve_device(config_device: str, config_compute: str) -> tuple[str, str]:
     """Resolve device and compute_type from config ('auto' -> detect GPU).
 
@@ -63,55 +109,17 @@ def _resolve_device(config_device: str, config_compute: str) -> tuple[str, str]:
     compute_type = config_compute
 
     if device == "auto":
-        try:
-            # ROCm workaround: ctranslate2's native allocator crashes with
-            # "free(): invalid pointer" if torch's ROCm/HIP runtime initializes
-            # first. Import ctranslate2 before torch to avoid this.
-            try:
-                import ctranslate2 as _  # noqa: F401
-            except ImportError:
-                pass
-            import torch
-
-            # Suppress noisy "(null): No such file or directory" from HIP
-            # runtime when it probes for optional libhsa-amd-aqlprofile64.so.
-            import os
-            import sys
-
-            _stderr_fd = sys.stderr.fileno()
-            _old_stderr_fd = os.dup(_stderr_fd)
-            with open(os.devnull, "w") as _devnull:
-                os.dup2(_devnull.fileno(), _stderr_fd)
-                try:
-                    _cuda_available = torch.cuda.is_available()
-                finally:
-                    os.dup2(_old_stderr_fd, _stderr_fd)
-                    os.close(_old_stderr_fd)
-
-            if _cuda_available:
-                # ROCm torch exposes GPUs via torch.cuda but sets torch.version.hip
-                is_rocm = bool(getattr(torch.version, "hip", None))
-                # Verify GPU actually works — catches unsupported architectures
-                # (e.g. RDNA4/gfx1151 on ROCm 6.2 which only supports RDNA3).
-                if _gpu_sanity_check():
-                    device = "rocm" if is_rocm else "cuda"
-                    gpu_name = torch.cuda.get_device_name(0)
-                    console.print(
-                        f"{tag('preflight')} GPU: {gpu_name}"
-                        f" ({'ROCm' if is_rocm else 'CUDA'})"
-                    )
-                else:
-                    gpu_name = torch.cuda.get_device_name(0)
-                    console.print(
-                        f"{tag('preflight')} [yellow]GPU detected ({gpu_name}) "
-                        f"but operations failed — falling back to CPU. "
-                        f"Your GPU may not be supported by this ROCm/CUDA version.[/yellow]"
-                    )
-                    device = "cpu"
-            else:
-                device = "cpu"
-        except ImportError:
-            device = "cpu"
+        device, gpu_name = _detect_gpu()
+        if device in ("cuda", "rocm"):
+            console.print(
+                f"{tag('preflight')} GPU: {gpu_name} ({'ROCm' if device == 'rocm' else 'CUDA'})"
+            )
+        elif gpu_name:
+            console.print(
+                f"{tag('preflight')} [yellow]GPU detected ({gpu_name}) "
+                f"but operations failed — falling back to CPU. "
+                f"Your GPU may not be supported by this ROCm/CUDA version.[/yellow]"
+            )
 
     if compute_type == "auto":
         compute_type = "float16" if device in ("cuda", "rocm") else "int8"
@@ -177,12 +185,12 @@ def _detect_transcription_backend(
             diarize_note = " [yellow](set HF_TOKEN to enable diarization)[/yellow]"
         elif can_diarize:
             diarize_note = " with diarization"
-        device_desc = "rocm (ASR on CPU, align/diarize on GPU)" if device == "rocm" \
+        device_desc = (
+            "rocm (ASR on CPU, align/diarize on GPU)"
+            if device == "rocm"
             else f"{device} ({compute_type})"
-        console.print(
-            f"{tag('preflight')} Transcription: whisperx on "
-            f"{device_desc}{diarize_note}"
         )
+        console.print(f"{tag('preflight')} Transcription: whisperx on {device_desc}{diarize_note}")
         return TranscriptionBackend(
             "whisperx",
             device,
@@ -365,8 +373,7 @@ def _check_hf_token_and_diarize_access(hf_token: str) -> None:
         username = user_info.get("name", "unknown")
     except Exception as exc:
         raise RuntimeError(
-            f"HF_TOKEN is invalid: {exc}\n"
-            "  Create a new token at https://hf.co/settings/tokens"
+            f"HF_TOKEN is invalid: {exc}\n  Create a new token at https://hf.co/settings/tokens"
         ) from exc
 
     # 3. Gated model access?
@@ -387,13 +394,11 @@ def _check_hf_token_and_diarize_access(hf_token: str) -> None:
             ) from exc
         except Exception as exc:
             console.print(
-                f"{tag('preflight')} [yellow]Could not verify access to "
-                f"'{repo_id}': {exc}[/yellow]"
+                f"{tag('preflight')} [yellow]Could not verify access to '{repo_id}': {exc}[/yellow]"
             )
 
     console.print(
-        f"{tag('preflight')} HF token valid (user: {username}), "
-        f"pyannote model access OK."
+        f"{tag('preflight')} HF token valid (user: {username}), pyannote model access OK."
     )
 
 

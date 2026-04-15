@@ -12,6 +12,8 @@ from conf_briefing.config import Config
 from conf_briefing.console import console, tag
 from conf_briefing.io import load_json_file
 
+_VLM_MAX_TOKENS = 512
+
 _VLM_PROMPT = (
     "Describe the technical content of this conference presentation slide. "
     "Focus on diagrams, architecture, data flow, and key visual elements. "
@@ -39,7 +41,7 @@ def describe_slide(client: ollama.Client, model: str, image_path: Path) -> str:
                         "images": [image_b64],
                     },
                 ],
-                options={"num_predict": 512},
+                options={"num_predict": _VLM_MAX_TOKENS},
             )
             text = (response.message.content or "").strip()
             if not text:
@@ -55,7 +57,8 @@ def describe_slide(client: ollama.Client, model: str, image_path: Path) -> str:
                 )
                 time.sleep(delay)
 
-    assert last_exc is not None
+    if last_exc is None:
+        raise RuntimeError("describe_slide: all retries exhausted with no exception captured")
     raise last_exc
 
 
@@ -106,9 +109,7 @@ def describe_all_slides(config: Config) -> list[Path]:
         slides = data.get("slides", [])
 
         # Count slides needing descriptions
-        to_describe = [
-            (i, s) for i, s in enumerate(slides) if not s.get("description")
-        ]
+        to_describe = [(i, s) for i, s in enumerate(slides) if not s.get("description")]
 
         if not to_describe:
             continue
@@ -122,17 +123,14 @@ def describe_all_slides(config: Config) -> list[Path]:
         described = 0
 
         with ThreadPoolExecutor(max_workers=num_parallel) as executor:
-            futures = {
-                executor.submit(_describe_one, item): item for item in to_describe
-            }
+            futures = {executor.submit(_describe_one, item): item for item in to_describe}
             for future in as_completed(futures):
                 idx, desc, info = future.result()
                 described += 1
                 if desc:
                     slides[idx]["description"] = desc
                     console.print(
-                        f"  {tag('vlm')} [{described}/{len(to_describe)}] "
-                        f"slide {idx} ({info})"
+                        f"  {tag('vlm')} [{described}/{len(to_describe)}] slide {idx} ({info})"
                     )
                 else:
                     console.print(
@@ -145,9 +143,7 @@ def describe_all_slides(config: Config) -> list[Path]:
         updated.append(json_path)
 
     if updated:
-        console.print(
-            f"{tag('vlm')} Described slides in {len(updated)} file(s)."
-        )
+        console.print(f"{tag('vlm')} Described slides in {len(updated)} file(s).")
     else:
         console.print(f"{tag('vlm')} All slides already have descriptions.")
 

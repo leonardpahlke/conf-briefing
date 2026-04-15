@@ -1,5 +1,6 @@
 """Video transcription using faster-whisper."""
 
+import contextlib
 import json
 import logging
 import time
@@ -8,6 +9,29 @@ from pathlib import Path
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
 from conf_briefing.io import load_json_file
+
+
+def _load_video_title(video_path: Path) -> str:
+    """Load video title from the metadata sidecar written during download."""
+    meta_path = video_path.parent / f"{video_path.stem}.meta.json"
+    if not meta_path.exists():
+        return ""
+    with contextlib.suppress(ValueError, OSError):
+        return load_json_file(meta_path).get("title", "")
+    return ""
+
+
+def _partition_videos(video_files: list[Path], output_dir: Path) -> tuple[list[Path], list[Path]]:
+    """Split videos into (to_process, existing) based on whether transcript JSON exists."""
+    to_process = []
+    existing = []
+    for vf in video_files:
+        transcript_path = output_dir / f"{vf.stem}.json"
+        if transcript_path.exists():
+            existing.append(transcript_path)
+        else:
+            to_process.append(vf)
+    return to_process, existing
 
 
 def transcribe_video(
@@ -31,15 +55,7 @@ def transcribe_video(
         full_parts.append(seg.text)
 
     video_id = video_path.stem
-
-    # Load title from metadata sidecar written during download
-    title = ""
-    meta_path = video_path.parent / f"{video_id}.meta.json"
-    if meta_path.exists():
-        try:
-            title = load_json_file(meta_path).get("title", "")
-        except (ValueError, OSError):
-            pass
+    title = _load_video_title(video_path)
 
     transcript = {
         "video_id": video_id,
@@ -66,17 +82,11 @@ def _build_whisperx_output(
     diarized: bool,
 ) -> Path:
     """Build transcript JSON from WhisperX result. Shared by single/batch paths."""
-    import contextlib
-
     # Build speaker label map (SPEAKER_00 → Speaker 1, etc.)
     speaker_map: dict[str, str] = {}
     if diarized:
         raw_speakers = sorted(
-            {
-                seg.get("speaker", "")
-                for seg in result.get("segments", [])
-                if seg.get("speaker")
-            }
+            {seg.get("speaker", "") for seg in result.get("segments", []) if seg.get("speaker")}
         )
         speaker_map = {s: f"Speaker {i + 1}" for i, s in enumerate(raw_speakers)}
 
@@ -99,12 +109,7 @@ def _build_whisperx_output(
             full_parts.append(f"[{label}] {text}" if label else text)
 
     video_id = video_path.stem
-
-    title = ""
-    meta_path = video_path.parent / f"{video_id}.meta.json"
-    if meta_path.exists():
-        with contextlib.suppress(ValueError, OSError):
-            title = load_json_file(meta_path).get("title", "")
+    title = _load_video_title(video_path)
 
     duration = segments[-1]["end"] if segments else 0
 
@@ -135,6 +140,10 @@ _WHISPERX_BATCH_SIZE_CPU = 8
 _DIARIZE_MIN_SPEAKERS = 1
 _DIARIZE_MAX_SPEAKERS = 5
 
+# Voice Activity Detection thresholds for WhisperX
+_VAD_ONSET = 0.5
+_VAD_OFFSET = 0.363
+
 
 def transcribe_all(
     config: Config,
@@ -156,15 +165,7 @@ def transcribe_all(
         console.print(f"{tag('whisper')} No video files found.")
         return []
 
-    # Filter out already-transcribed videos
-    to_process = []
-    existing = []
-    for vf in video_files:
-        transcript_path = output_dir / f"{vf.stem}.json"
-        if transcript_path.exists():
-            existing.append(transcript_path)
-        else:
-            to_process.append(vf)
+    to_process, existing = _partition_videos(video_files, output_dir)
 
     if existing:
         console.print(f"{tag('whisper')} Skipping {len(existing)} already-transcribed video(s).")
@@ -210,28 +211,18 @@ def transcribe_all(
     return results
 
 
-def transcribe_all_whisperx(
-    config: Config,
-    device: str,
-    compute_type: str,
-    initial_prompt: str = "",
-    diarize: bool = True,
-) -> list[Path]:
-    """Transcribe all downloaded videos using WhisperX with optional diarization.
+def _suppress_whisperx_warnings(device: str) -> str | None:
+    """Suppress tqdm bars and noisy warnings before importing whisperx/torch.
 
-    Models are loaded once and reused across all videos. GPU memory is managed
-    between pipeline stages to reduce peak VRAM usage.
+    Returns the previous TQDM_DISABLE value for later restoration.
     """
-    import gc
     import os
     import warnings
 
-    # Suppress tqdm bars and noisy warnings BEFORE importing whisperx/torch,
-    # since pyannote and torch fire warnings/progress at import time.
     # NOTE: Python's C-level warning filter uses pattern.match() (anchored at
     # start of string). pyannote's torchcodec warning starts with '\n', so we
     # need (?s) (DOTALL) to let '.' match newlines, otherwise the filter fails.
-    _old_tqdm_disable = os.environ.get("TQDM_DISABLE")
+    old_tqdm_disable = os.environ.get("TQDM_DISABLE")
     os.environ["TQDM_DISABLE"] = "1"
     warnings.filterwarnings("ignore", message=r"(?s).*torchcodec.*")
     warnings.filterwarnings("ignore", message=r"(?s).*libnvrtc.*")
@@ -252,7 +243,7 @@ def transcribe_all_whisperx(
     # "free(): invalid pointer" if torch's ROCm runtime is initialized first.
     # Pre-initialize ctranslate2 by importing faster_whisper before torch.
     if device == "rocm":
-        import faster_whisper as _  # noqa: F811
+        import faster_whisper as _  # noqa: F401
 
     import torch
 
@@ -264,81 +255,32 @@ def transcribe_all_whisperx(
         torch.backends.cudnn.enabled = False
         torch.backends.cudnn.benchmark = False
 
-    import whisperx
-
     # whisperx.log_utils.get_logger() auto-calls setup_logging(level="info")
     # on first use, overriding any level we set beforehand. Reconfigure it.
+    import whisperx  # noqa: F401
     from whisperx.log_utils import setup_logging as _wxlog_setup
+
     _wxlog_setup(level="error")
 
-    data_dir = config.data_dir
-    videos_dir = data_dir / "videos"
-    output_dir = data_dir / "transcripts"
+    return old_tqdm_disable
 
-    if not videos_dir.exists():
-        console.print(f"{tag('whisperx')} No videos directory found, skipping transcription.")
-        return []
 
-    video_files = sorted(videos_dir.glob("*.mp4"))
-    if not video_files:
-        console.print(f"{tag('whisperx')} No video files found.")
-        return []
+def _load_whisperx_models(
+    model_name: str,
+    language: str,
+    asr_device: str,
+    asr_compute: str,
+    torch_device: str,
+    initial_prompt: str,
+    can_diarize: bool,
+    hf_token: str,
+) -> tuple:
+    """Load WhisperX ASR, alignment, and optional diarization models.
 
-    # Filter out already-transcribed videos
-    to_process = []
-    existing = []
-    for vf in video_files:
-        transcript_path = output_dir / f"{vf.stem}.json"
-        if transcript_path.exists():
-            existing.append(transcript_path)
-        else:
-            to_process.append(vf)
+    Returns (asr_model, align_model, align_metadata, diarize_model).
+    """
+    import whisperx
 
-    if existing:
-        console.print(
-            f"{tag('whisperx')} Skipping {len(existing)} already-transcribed video(s)."
-        )
-
-    if not to_process:
-        console.print(f"{tag('whisperx')} All videos already transcribed.")
-        return existing
-
-    model_name = config.extract.whisper_model
-    language = config.extract.language
-    hf_token = os.environ.get("HF_TOKEN", "")
-    can_diarize = diarize and bool(hf_token)
-
-    # ROCm: ctranslate2 (used by faster-whisper for ASR) has no ROCm support,
-    # so ASR runs on CPU. Alignment + diarization use PyTorch which works on
-    # ROCm via the HIP compatibility layer (exposed as "cuda" in torch).
-    is_rocm = device == "rocm"
-    asr_device = "cpu" if is_rocm else device
-    asr_compute = "int8" if is_rocm else compute_type
-    torch_device = "cuda" if is_rocm else device  # PyTorch ROCm uses "cuda" API
-    batch_size = _WHISPERX_BATCH_SIZE_CPU if asr_device == "cpu" else _WHISPERX_BATCH_SIZE_GPU
-
-    device_desc = "rocm (ASR on CPU, alignment/diarization on GPU)" if is_rocm \
-        else f"{device} ({compute_type})"
-    console.print(
-        f"{tag('whisperx')} Transcribing {len(to_process)} video(s) "
-        f"with {model_name} on {device_desc}, "
-        f"batch_size={batch_size}"
-        f"{' + diarization' if can_diarize else ''}."
-    )
-
-    logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
-
-    def _free_gpu():
-        gc.collect()
-        try:
-            import torch
-
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        except ImportError:
-            pass
-
-    # --- Load models once ---
     with console.status(f"{tag('whisperx')} Loading ASR model {model_name}..."):
         t0 = time.monotonic()
         asr_model = whisperx.load_model(
@@ -351,7 +293,7 @@ def transcribe_all_whisperx(
                 "initial_prompt": initial_prompt or None,
                 "hotwords": initial_prompt or None,
             },
-            vad_options={"vad_onset": 0.5, "vad_offset": 0.363},
+            vad_options={"vad_onset": _VAD_ONSET, "vad_offset": _VAD_OFFSET},
         )
         elapsed = time.monotonic() - t0
     console.print(f"{tag('whisperx')} ASR model loaded in {elapsed:.1f}s.")
@@ -381,6 +323,99 @@ def transcribe_all_whisperx(
                 ) from exc
         console.print(f"{tag('whisperx')} Diarization model loaded.")
 
+    return asr_model, align_model, align_metadata, diarize_model
+
+
+def transcribe_all_whisperx(
+    config: Config,
+    device: str,
+    compute_type: str,
+    initial_prompt: str = "",
+    diarize: bool = True,
+) -> list[Path]:
+    """Transcribe all downloaded videos using WhisperX with optional diarization.
+
+    Models are loaded once and reused across all videos. GPU memory is managed
+    between pipeline stages to reduce peak VRAM usage.
+    """
+    import gc
+    import os
+
+    _old_tqdm_disable = _suppress_whisperx_warnings(device)
+
+    import whisperx
+
+    data_dir = config.data_dir
+    videos_dir = data_dir / "videos"
+    output_dir = data_dir / "transcripts"
+
+    if not videos_dir.exists():
+        console.print(f"{tag('whisperx')} No videos directory found, skipping transcription.")
+        return []
+
+    video_files = sorted(videos_dir.glob("*.mp4"))
+    if not video_files:
+        console.print(f"{tag('whisperx')} No video files found.")
+        return []
+
+    to_process, existing = _partition_videos(video_files, output_dir)
+
+    if existing:
+        console.print(f"{tag('whisperx')} Skipping {len(existing)} already-transcribed video(s).")
+
+    if not to_process:
+        console.print(f"{tag('whisperx')} All videos already transcribed.")
+        return existing
+
+    model_name = config.extract.whisper_model
+    language = config.extract.language
+    hf_token = os.environ.get("HF_TOKEN", "")
+    can_diarize = diarize and bool(hf_token)
+
+    # ROCm: ctranslate2 (used by faster-whisper for ASR) has no ROCm support,
+    # so ASR runs on CPU. Alignment + diarization use PyTorch which works on
+    # ROCm via the HIP compatibility layer (exposed as "cuda" in torch).
+    is_rocm = device == "rocm"
+    asr_device = "cpu" if is_rocm else device
+    asr_compute = "int8" if is_rocm else compute_type
+    torch_device = "cuda" if is_rocm else device  # PyTorch ROCm uses "cuda" API
+    batch_size = _WHISPERX_BATCH_SIZE_CPU if asr_device == "cpu" else _WHISPERX_BATCH_SIZE_GPU
+
+    device_desc = (
+        "rocm (ASR on CPU, alignment/diarization on GPU)"
+        if is_rocm
+        else f"{device} ({compute_type})"
+    )
+    console.print(
+        f"{tag('whisperx')} Transcribing {len(to_process)} video(s) "
+        f"with {model_name} on {device_desc}, "
+        f"batch_size={batch_size}"
+        f"{' + diarization' if can_diarize else ''}."
+    )
+
+    logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+
+    def _free_gpu():
+        gc.collect()
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except ImportError:
+            pass
+
+    asr_model, align_model, align_metadata, diarize_model = _load_whisperx_models(
+        model_name,
+        language,
+        asr_device,
+        asr_compute,
+        torch_device,
+        initial_prompt,
+        can_diarize,
+        hf_token,
+    )
+
     # --- Process videos ---
     results = list(existing)
     total = len(to_process)
@@ -407,15 +442,19 @@ def transcribe_all_whisperx(
                     min_speakers=_DIARIZE_MIN_SPEAKERS,
                     max_speakers=_DIARIZE_MAX_SPEAKERS,
                 )
-                result = whisperx.assign_word_speakers(
-                    diarize_segments, result, fill_nearest=True
-                )
+                result = whisperx.assign_word_speakers(diarize_segments, result, fill_nearest=True)
                 diarized = True
 
             # 4. Build and save output
             out = _build_whisperx_output(
                 result, vf, output_dir, model_name, detected_language, diarized
             )
+
+            # Free intermediate tensors between videos to prevent memory buildup
+            del audio, result
+            if diarize_model is not None and diarized:
+                del diarize_segments
+            _free_gpu()
 
             elapsed = time.monotonic() - t0
 

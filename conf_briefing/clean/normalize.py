@@ -10,6 +10,8 @@ from conf_briefing.config import MIN_VIDEO_DURATION_SEC, Config
 from conf_briefing.console import console, tag
 from conf_briefing.io import load_json_file
 
+_MATCH_SIMILARITY_THRESHOLD = 0.6
+
 
 def clean_text(text: str) -> str:
     """Normalize whitespace, encoding, and strip HTML tags."""
@@ -118,9 +120,7 @@ def _align_slides_to_transcript(
 
     for slide_i, (slide_ts, orig_idx, slide) in enumerate(timed_slides):
         # Determine end time for this slide (= start of next slide, or end of transcript)
-        next_ts = (
-            timed_slides[slide_i + 1][0] if slide_i + 1 < len(timed_slides) else float("inf")
-        )
+        next_ts = timed_slides[slide_i + 1][0] if slide_i + 1 < len(timed_slides) else float("inf")
 
         # Format slide header
         minutes = int(slide_ts) // 60
@@ -161,6 +161,81 @@ def _align_slides_to_transcript(
     return "\n\n".join(parts)
 
 
+def _load_transcripts(
+    transcripts_dir: Path,
+) -> tuple[dict[str, dict], dict[str, list[dict]]]:
+    """Load all transcripts and their segments in a single pass.
+
+    Returns (transcripts_by_id, segments_by_video).
+    """
+    transcripts: dict[str, dict] = {}
+    segments_by_video: dict[str, list[dict]] = {}
+    for tf in transcripts_dir.glob("*.json"):
+        data = load_json_file(tf)
+        if "video_id" in data:
+            transcripts[data["video_id"]] = data
+            if "segments" in data:
+                segments_by_video[data["video_id"]] = data["segments"]
+    return transcripts, segments_by_video
+
+
+def _match_by_similarity(
+    sessions: list[dict], transcripts: dict[str, dict]
+) -> tuple[int, int, list[dict]]:
+    """Greedy-match transcripts to sessions by title similarity.
+
+    Updates sessions in-place. Returns (matched_count, skipped_short, unmatched).
+    """
+    for session in sessions:
+        session["transcript"] = None
+        session["video_id"] = None
+
+    skipped_short = 0
+    unmatched: list[dict] = []
+    matched_count = 0
+
+    for vid, transcript in transcripts.items():
+        duration = transcript.get("duration_sec", 0)
+        if duration and duration < MIN_VIDEO_DURATION_SEC:
+            skipped_short += 1
+            continue
+
+        best_score = 0.0
+        best_idx = -1
+        title = transcript.get("title", "")
+
+        for i, session in enumerate(sessions):
+            if session["video_id"] is not None:
+                continue
+            score = similarity(title, session["title"]) if title else 0.0
+            if score > best_score:
+                best_score = score
+                best_idx = i
+
+        if best_idx >= 0 and best_score > _MATCH_SIMILARITY_THRESHOLD:
+            sessions[best_idx]["transcript"] = transcript.get("full_text", "")
+            sessions[best_idx]["video_id"] = vid
+            sessions[best_idx]["duration_sec"] = duration
+            matched_count += 1
+        else:
+            unmatched.append(
+                {
+                    "title": title or f"Recording {vid}",
+                    "abstract": "",
+                    "speakers": [],
+                    "track": "",
+                    "format": "recording",
+                    "time": "",
+                    "tags": [],
+                    "transcript": transcript.get("full_text", ""),
+                    "video_id": vid,
+                    "duration_sec": duration,
+                }
+            )
+
+    return matched_count, skipped_short, unmatched
+
+
 def match_transcripts(config: Config) -> Path:
     """Match transcripts to schedule entries by title similarity."""
     data_dir = config.data_dir
@@ -180,71 +255,13 @@ def match_transcripts(config: Config) -> Path:
         out_path.write_text(json.dumps(sessions, indent=2, ensure_ascii=False))
         return out_path
 
-    # Load all transcripts and their segments in a single pass
-    transcripts = {}
-    transcripts_segments: dict[str, list[dict]] = {}
-    for tf in transcripts_dir.glob("*.json"):
-        data = load_json_file(tf)
-        if "video_id" in data:
-            transcripts[data["video_id"]] = data
-            if "segments" in data:
-                transcripts_segments[data["video_id"]] = data["segments"]
+    transcripts, segments_by_video = _load_transcripts(transcripts_dir)
 
     console.print(
         f"{tag('clean')} Matching {len(transcripts)} transcripts to {len(sessions)} sessions..."
     )
 
-    # Simple greedy matching: for each transcript, find best matching session
-    for session in sessions:
-        session["transcript"] = None
-        session["video_id"] = None
-
-    # Filter out short videos (highlight reels, teasers) before matching
-    skipped_short = 0
-    unmatched: list[dict] = []
-
-    matched_count = 0
-    for vid, transcript in transcripts.items():
-        duration = transcript.get("duration_sec", 0)
-        if duration and duration < MIN_VIDEO_DURATION_SEC:
-            skipped_short += 1
-            continue
-
-        # Use the first segment or full text to try title matching
-        best_score = 0.0
-        best_idx = -1
-        title = transcript.get("title", "")
-
-        for i, session in enumerate(sessions):
-            if session["video_id"] is not None:
-                continue
-            score = similarity(title, session["title"]) if title else 0.0
-            if score > best_score:
-                best_score = score
-                best_idx = i
-
-        if best_idx >= 0 and best_score > 0.6:
-            sessions[best_idx]["transcript"] = transcript.get("full_text", "")
-            sessions[best_idx]["video_id"] = vid
-            sessions[best_idx]["duration_sec"] = duration
-            matched_count += 1
-        else:
-            # Collect unmatched transcripts separately to avoid mutating during iteration
-            unmatched.append(
-                {
-                    "title": title or f"Recording {vid}",
-                    "abstract": "",
-                    "speakers": [],
-                    "track": "",
-                    "format": "recording",
-                    "time": "",
-                    "tags": [],
-                    "transcript": transcript.get("full_text", ""),
-                    "video_id": vid,
-                    "duration_sec": duration,
-                }
-            )
-
+    matched_count, skipped_short, unmatched = _match_by_similarity(sessions, transcripts)
     sessions.extend(unmatched)
 
     # Match slide data to sessions by video_id
@@ -273,11 +290,9 @@ def match_transcripts(config: Config) -> Path:
                 session["slide_references"] = _extract_references(slide_texts)
 
                 # Temporal slide-transcript alignment
-                segments = transcripts_segments.get(vid, [])
+                segments = segments_by_video.get(vid, [])
                 if segments and slide_entries:
-                    session["slide_aligned"] = _align_slides_to_transcript(
-                        segments, slide_entries
-                    )
+                    session["slide_aligned"] = _align_slides_to_transcript(segments, slide_entries)
 
                 if slide_texts or slide_descs:
                     slides_matched += 1

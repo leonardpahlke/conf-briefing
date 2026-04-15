@@ -14,6 +14,9 @@ OVERLAP_TOKENS = 100
 CHUNK_CHARS = CHUNK_TOKENS * CHARS_PER_TOKEN
 OVERLAP_CHARS = OVERLAP_TOKENS * CHARS_PER_TOKEN
 
+# Number of slides grouped into a single chunk for vector indexing
+_SLIDES_PER_CHUNK = 3
+
 
 @dataclass
 class Chunk:
@@ -333,8 +336,8 @@ def _load_slide_chunks(config: Config, sessions: list[dict]) -> list[Chunk]:
         meta["source_file"] = f"slides/{video_id}.json"
 
         # Group slides into chunks of 3 for reasonable chunk sizes
-        for i in range(0, len(slides), 3):
-            group = slides[i : i + 3]
+        for i in range(0, len(slides), _SLIDES_PER_CHUNK):
+            group = slides[i : i + _SLIDES_PER_CHUNK]
             parts = []
             timestamps = []
             for slide in group:
@@ -352,7 +355,7 @@ def _load_slide_chunks(config: Config, sessions: list[dict]) -> list[Chunk]:
             if not parts:
                 continue
 
-            chunk_idx = i // 3
+            chunk_idx = i // _SLIDES_PER_CHUNK
             chunk_meta = {
                 **meta,
                 "chunk_index": chunk_idx,

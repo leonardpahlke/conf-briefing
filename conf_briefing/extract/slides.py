@@ -1,5 +1,6 @@
 """Slide extraction: scene detection, deduplication, and OCR."""
 
+import gc
 import json
 import time
 from pathlib import Path
@@ -7,6 +8,13 @@ from pathlib import Path
 from conf_briefing.config import MIN_VIDEO_DURATION_SEC, Config
 from conf_briefing.console import console, tag
 from conf_briefing.io import load_json_file
+
+# Minimum number of frames a scene must last before a new cut is registered
+_MIN_SCENE_LEN_FRAMES = 15
+
+# Videos longer than this (seconds) use a lower scene-detection threshold
+_KEYNOTE_DURATION_THRESHOLD = 300
+_KEYNOTE_THRESHOLD = 20.0
 
 
 def _extract_frames(video_path: Path, output_dir: Path, threshold: float) -> list[dict]:
@@ -19,7 +27,9 @@ def _extract_frames(video_path: Path, output_dir: Path, threshold: float) -> lis
 
     video = open_video(str(video_path))
     scene_manager = SceneManager()
-    scene_manager.add_detector(ContentDetector(threshold=threshold, min_scene_len=15))
+    scene_manager.add_detector(
+        ContentDetector(threshold=threshold, min_scene_len=_MIN_SCENE_LEN_FRAMES)
+    )
     scene_manager.detect_scenes(video)
     scene_list = scene_manager.get_scene_list()
 
@@ -135,8 +145,8 @@ def extract_slides(
     # Use a lower threshold for longer videos (keynotes) to catch gradual transitions
     if not duration:
         duration = _get_video_duration(video_path)
-    if duration > 300:
-        threshold = min(threshold, 20.0)
+    if duration > _KEYNOTE_DURATION_THRESHOLD:
+        threshold = min(threshold, _KEYNOTE_THRESHOLD)
 
     # Scene detection → frame extraction
     frames = _extract_frames(video_path, frames_dir, threshold)
@@ -193,7 +203,9 @@ def extract_all_slides(config: Config) -> list[Path]:
     if existing:
         console.print(f"{tag('slides')} Skipping {len(existing)} already-processed video(s).")
     if skipped_short:
-        console.print(f"{tag('slides')} Skipping {skipped_short} short video(s) (<{MIN_VIDEO_DURATION_SEC}s).")
+        console.print(
+            f"{tag('slides')} Skipping {skipped_short} short video(s) (<{MIN_VIDEO_DURATION_SEC}s)."
+        )
 
     if not to_process:
         console.print(f"{tag('slides')} All videos already processed.")
@@ -214,6 +226,7 @@ def extract_all_slides(config: Config) -> list[Path]:
             elapsed = time.monotonic() - t0
         console.print(f"{tag('slides')} [{i}/{total}] {vf.name} ({elapsed:.0f}s)")
         results.append(out)
+        gc.collect()  # Reclaim OpenCV/PIL memory between videos
 
     console.print(f"{tag('slides')} Extracted slides from {total} video(s).")
     return results

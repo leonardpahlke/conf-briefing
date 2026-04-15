@@ -8,6 +8,7 @@ from pathlib import Path
 
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
+from conf_briefing.extract.transcribe import _load_video_title, _partition_videos
 from conf_briefing.io import load_json_file
 
 
@@ -119,14 +120,7 @@ def transcribe_video_wcpp(
 
         wcpp_data = load_json_file(wcpp_json_path)
 
-    # Load title from metadata sidecar written during download
-    title = ""
-    meta_path = video_path.parent / f"{video_id}.meta.json"
-    if meta_path.exists():
-        try:
-            title = load_json_file(meta_path).get("title", "")
-        except (ValueError, OSError):
-            pass
+    title = _load_video_title(video_path)
 
     # Parse into our schema
     model_name = Path(model_path).stem
@@ -158,15 +152,7 @@ def transcribe_all_wcpp(
         console.print(f"{tag('whisper')} No video files found.")
         return []
 
-    # Filter out already-transcribed videos
-    to_process = []
-    existing = []
-    for vf in video_files:
-        transcript_path = output_dir / f"{vf.stem}.json"
-        if transcript_path.exists():
-            existing.append(transcript_path)
-        else:
-            to_process.append(vf)
+    to_process, existing = _partition_videos(video_files, output_dir)
 
     if existing:
         console.print(f"{tag('whisper')} Skipping {len(existing)} already-transcribed video(s).")

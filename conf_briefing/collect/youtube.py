@@ -12,6 +12,8 @@ from pathlib import Path
 
 from conf_briefing.console import console, progress_bar, tag
 
+_DOWNLOAD_WORKERS = 4
+
 
 def _validate_video_id(vid: str) -> str:
     """Validate a YouTube video ID."""
@@ -131,17 +133,16 @@ def download_videos(
             _validate_video_id(vid)
             valid_ids.append(vid)
         except ValueError:
-            console.print(f"  {tag('download')} [yellow]Skipping invalid video ID: {vid!r}[/yellow]")
+            console.print(
+                f"  {tag('download')} [yellow]Skipping invalid video ID: {vid!r}[/yellow]"
+            )
 
     results: list[tuple[str, Path | None]] = []
 
     with progress_bar() as pb:
         task = pb.add_task(f"{tag('download')} Downloading videos", total=len(valid_ids))
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = {
-                executor.submit(_download_single, vid, output_dir): vid
-                for vid in valid_ids
-            }
+        with ThreadPoolExecutor(max_workers=_DOWNLOAD_WORKERS) as executor:
+            futures = {executor.submit(_download_single, vid, output_dir): vid for vid in valid_ids}
             for future in as_completed(futures):
                 vid = futures[future]
                 try:
@@ -150,7 +151,9 @@ def download_videos(
                     pb.update(task, advance=1, description=f"{tag('download')} {vid}")
                 except Exception as e:
                     results.append((vid, None))
-                    pb.update(task, advance=1, description=f"{tag('download')} {vid} [red]failed[/red]")
+                    pb.update(
+                        task, advance=1, description=f"{tag('download')} {vid} [red]failed[/red]"
+                    )
                     console.print(f"  {tag('download')} [red]{vid} — {e}[/red]")
 
     return results

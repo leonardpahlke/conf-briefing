@@ -127,7 +127,23 @@
       "WebFetch(domain:lunnova.dev)",
       "Bash(du:*)",
       "Bash(do python:*)",
-      "Bash(nix-store:*)"
+      "Bash(nix-store:*)",
+      "Bash(awk NR >= 256 && NR <= 275:*)",
+      "Bash(awk NR >= 502 && NR <= 560:*)",
+      "Bash(awk NR >= 42 && NR <= 50:*)",
+      "Bash(awk NR >= 115 && NR <= 130:*)",
+      "Bash(awk NR >= 341 && NR <= 352:*)",
+      "Bash(awk NR >= 35 && NR <= 58:*)",
+      "Bash(awk NR >= 100 && NR <= 114:*)",
+      "Bash(awk NR >= 289 && NR <= 313:*)",
+      "Bash(head:*)",
+      "Bash(ollama ps:*)",
+      "Bash(rocm-smi:*)",
+      "Bash(sudo:*)",
+      "Bash(systemctl restart:*)",
+      "Bash(gh api:*)",
+      "Bash(systemctl show:*)",
+      "mcp__claude_ai_Mermaid_Chart__validate_and_render_mermaid_diagram"
     ]
   }
 }

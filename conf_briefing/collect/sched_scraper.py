@@ -197,23 +197,16 @@ def _fetch_with_retry(url: str, session: requests.Session) -> requests.Response:
     return resp
 
 
-def _fetch_all_details(
-    sessions: list[dict],
-    *,
-    http_session: requests.Session,
-    cache_dir: str | Path | None = None,
-    max_workers: int = MAX_WORKERS,
-) -> list[dict]:
-    """Fetch detail pages for all sessions, with caching and concurrency."""
-    if cache_dir is not None:
-        cache_dir = Path(cache_dir)
-        cache_dir.mkdir(parents=True, exist_ok=True)
+def _separate_cached(
+    sessions: list[dict], cache_dir: Path | None
+) -> tuple[list[tuple[int, dict]], int]:
+    """Separate sessions into (to_fetch, cached_count) based on cache hits.
 
-    total = len(sessions)
+    Cached sessions are updated in-place with their cached data.
+    """
     to_fetch: list[tuple[int, dict]] = []
     cached_count = 0
 
-    # Check cache and separate cached vs. to-fetch
     for idx, sess in enumerate(sessions):
         detail_url = sess.get("_detail_url", "")
         if not detail_url:
@@ -230,6 +223,24 @@ def _fetch_all_details(
                 continue
 
         to_fetch.append((idx, sess))
+
+    return to_fetch, cached_count
+
+
+def _fetch_all_details(
+    sessions: list[dict],
+    *,
+    http_session: requests.Session,
+    cache_dir: str | Path | None = None,
+    max_workers: int = MAX_WORKERS,
+) -> list[dict]:
+    """Fetch detail pages for all sessions, with caching and concurrency."""
+    if cache_dir is not None:
+        cache_dir = Path(cache_dir)
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+    total = len(sessions)
+    to_fetch, cached_count = _separate_cached(sessions, cache_dir)
 
     if cached_count:
         console.print(

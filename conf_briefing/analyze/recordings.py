@@ -22,6 +22,12 @@ from conf_briefing.io import load_json_file
 _MAX_TRANSCRIPT_CHARS = 30_000
 _MIN_TRANSCRIPT_CHARS = 100
 
+
+def _filter_empty_relationships(items: list[dict], key: str = "entity_a") -> list[dict]:
+    """Remove relationship entries where the given key is empty or whitespace."""
+    return [r for r in items if r.get(key, "").strip()]
+
+
 SYSTEM_PROMPT = """\
 You are a conference talk analyst. Extract key insights from transcripts as JSON. \
 Only include information explicitly stated. If a field has no evidence, leave it empty."""
@@ -163,10 +169,7 @@ def analyze_single_talk(config: Config, session: dict) -> dict | None:
 
     # Post-processing: drop relationships where entity_a is empty
     if "relationships" in merged:
-        merged["relationships"] = [
-            r for r in merged["relationships"]
-            if r.get("entity_a", "").strip()
-        ]
+        merged["relationships"] = _filter_empty_relationships(merged["relationships"])
 
     return merged
 
@@ -287,24 +290,36 @@ def synthesize_analyses(config: Config, analyses: list[dict]) -> dict:
     # Fire all 4 synthesis calls in parallel (independent inputs)
     with ThreadPoolExecutor(max_workers=4) as pool:
         narrative_future = pool.submit(
-            query_llm_json, config, SYSTEM_PROMPT,
+            query_llm_json,
+            config,
+            SYSTEM_PROMPT,
             SYNTH_NARRATIVE_PROMPT.format(**fmt_kwargs),
-            max_tokens=8192, schema=SynthNarrative,
+            max_tokens=8192,
+            schema=SynthNarrative,
         )
         signals_future = pool.submit(
-            query_llm_json, config, SYSTEM_PROMPT,
+            query_llm_json,
+            config,
+            SYSTEM_PROMPT,
             SYNTH_SIGNALS_PROMPT.format(**fmt_kwargs),
-            max_tokens=4096, schema=SynthSignals,
+            max_tokens=4096,
+            schema=SynthSignals,
         )
         tensions_future = pool.submit(
-            query_llm_json, config, SYSTEM_PROMPT,
+            query_llm_json,
+            config,
+            SYSTEM_PROMPT,
             SYNTH_TENSIONS_PROMPT.format(**fmt_kwargs),
-            max_tokens=6144, schema=SynthTensions,
+            max_tokens=6144,
+            schema=SynthTensions,
         )
         actions_future = pool.submit(
-            query_llm_json, config, SYSTEM_PROMPT,
+            query_llm_json,
+            config,
+            SYSTEM_PROMPT,
             SYNTH_ACTIONS_PROMPT.format(**fmt_kwargs),
-            max_tokens=4096, schema=SynthActions,
+            max_tokens=4096,
+            schema=SynthActions,
         )
         narrative_result = narrative_future.result()
         signals_result = signals_future.result()
@@ -316,10 +331,9 @@ def synthesize_analyses(config: Config, analyses: list[dict]) -> dict:
 
     # Post-processing: drop technology_relationships where entity_a is empty
     if "technology_relationships" in merged:
-        merged["technology_relationships"] = [
-            r for r in merged["technology_relationships"]
-            if r.get("entity_a", "").strip()
-        ]
+        merged["technology_relationships"] = _filter_empty_relationships(
+            merged["technology_relationships"]
+        )
 
     return merged
 
@@ -356,30 +370,67 @@ def analyze_recordings(config: Config) -> Path | None:
             f"({', '.join(s['title'][:40] for s in skipped[:3])}{'...' if len(skipped) > 3 else ''})"
         )
 
+    # Load existing analyses to skip already-analyzed talks
+    individual_path = data_dir / "analysis_talks.json"
+    existing_analyses: list[dict] = []
+    already_analyzed: set[str] = set()
+    if individual_path.exists():
+        existing_analyses = load_json_file(individual_path)
+        already_analyzed = {t["title"] for t in existing_analyses if t.get("title")}
+
+    to_analyze = [s for s in sessions_with_transcripts if s["title"] not in already_analyzed]
+    skipped_existing = len(sessions_with_transcripts) - len(to_analyze)
+
+    if skipped_existing:
+        console.print(
+            f"{tag('analyze')} Skipping {skipped_existing} already-analyzed talk(s)."
+        )
+
+    if not to_analyze:
+        console.print(f"{tag('analyze')} All talks already analyzed.")
+        # Still re-synthesize if synthesis file is missing
+        if not out_path.exists() and existing_analyses:
+            console.print(
+                f"{tag('analyze')} Synthesizing insights across {len(existing_analyses)} talks..."
+            )
+            with console.status(f"{tag('analyze')} Synthesizing..."):
+                synthesis = synthesize_analyses(config, existing_analyses)
+            synthesis["individual_talks"] = existing_analyses
+            out_path.write_text(json.dumps(synthesis, indent=2, ensure_ascii=False))
+            console.print(f"{tag('analyze')} Recording analysis saved to {out_path}")
+        return out_path
+
     console.print(
-        f"{tag('analyze')} Analyzing {len(sessions_with_transcripts)} talk transcripts..."
+        f"{tag('analyze')} Analyzing {len(to_analyze)} talk transcripts..."
     )
 
-    # Analyze individual talks (parallel)
-    talk_analyses = []
+    # Analyze individual talks (parallel), saving incrementally
+    new_analyses = []
     failed_count = 0
+
+    def _save_progress():
+        """Persist current results so interrupted runs can resume."""
+        from conf_briefing.analyze.entities import canonicalize_analysis as _canon
+
+        all_so_far = existing_analyses + [_canon(t) for t in new_analyses]
+        individual_path.write_text(json.dumps(all_so_far, indent=2, ensure_ascii=False))
+
     with progress_bar() as pb:
         task = pb.add_task(
-            f"{tag('analyze')} Analyzing talks", total=len(sessions_with_transcripts)
+            f"{tag('analyze')} Analyzing talks", total=len(to_analyze)
         )
 
         def _analyze(session):
             return session["title"][:50], analyze_single_talk(config, session)
 
         with ThreadPoolExecutor(max_workers=config.llm.num_parallel) as executor:
-            futures = {
-                executor.submit(_analyze, s): s for s in sessions_with_transcripts
-            }
+            futures = {executor.submit(_analyze, s): s for s in to_analyze}
             for future in as_completed(futures):
                 try:
                     title, result = future.result()
                     if result:
-                        talk_analyses.append(result)
+                        new_analyses.append(result)
+                        _save_progress()
                     pb.update(task, advance=1, description=f"{tag('analyze')} {title}")
                 except Exception as e:
                     failed_count += 1
@@ -393,7 +444,7 @@ def analyze_recordings(config: Config) -> Path | None:
                     console.print(f"  {tag('analyze')} [red]{title} — {e}[/red]")
 
     if failed_count:
-        total_attempted = len(sessions_with_transcripts)
+        total_attempted = len(to_analyze)
         console.print(
             f"{tag('analyze')} [yellow]{failed_count}/{total_attempted} talks failed analysis[/yellow]"
         )
@@ -403,16 +454,19 @@ def analyze_recordings(config: Config) -> Path | None:
                 f"Check Ollama connectivity and model availability.[/red bold]"
             )
 
-    # Apply entity canonicalization
+    # Apply entity canonicalization to new results
     from conf_briefing.analyze.entities import canonicalize_analysis
 
-    talk_analyses = [canonicalize_analysis(t) for t in talk_analyses]
+    new_analyses = [canonicalize_analysis(t) for t in new_analyses]
 
-    # Save individual analyses
-    individual_path = data_dir / "analysis_talks.json"
+    # Merge with existing analyses and do a final save
+    talk_analyses = existing_analyses + new_analyses
     individual_path.write_text(json.dumps(talk_analyses, indent=2, ensure_ascii=False))
+    console.print(
+        f"{tag('analyze')} Saved {len(new_analyses)} new + {len(existing_analyses)} existing = {len(talk_analyses)} total analyses."
+    )
 
-    # Synthesize across talks
+    # Synthesize across all talks (existing + new)
     if talk_analyses:
         console.print(
             f"{tag('analyze')} Synthesizing insights across {len(talk_analyses)} talks..."

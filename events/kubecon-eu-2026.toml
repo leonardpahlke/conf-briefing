@@ -18,6 +18,7 @@ eval_topics = ["AI/ML infrastructure", "platform engineering", "security and com
 
 [llm]
 model = "qwen3:32b-q8_0"
+num_parallel = 6
 
 [query]
 embedding_model = "nomic-embed-text"

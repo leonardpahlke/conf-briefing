@@ -105,9 +105,13 @@ _run := if path_exists(".rocm-torch") == "true" { "uv run --no-sync" } else { "u
 collect event:
     {{ _run }} conf-briefing -c events/{{event}}.toml collect
 
-# Extract AI data from collected videos (transcribe, slides, analyze)
+# Extract data from collected videos (transcribe, slides, clean)
 extract event:
     {{ _run }} conf-briefing -c events/{{event}}.toml extract
+
+# Run LLM analysis on extracted data (requires Ollama)
+analyze event:
+    {{ _run }} conf-briefing -c events/{{event}}.toml analyze
 
 # Remove extract outputs so `just extract` re-processes everything
 clean-extract event:

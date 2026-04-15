@@ -16,18 +16,13 @@ def cmd_collect(args):
 
 
 def cmd_extract(args):
-    """Run the extract pipeline step (transcribe + slides + clean + analyze)."""
+    """Run the extract pipeline step (transcribe + slides + clean)."""
     from conf_briefing.clean import run_clean
     from conf_briefing.extract import run_extract
 
     config = load_config(args.config)
     run_extract(config)
     run_clean(config)
-
-    if not args.skip_analyze:
-        from conf_briefing.analyze import run_analyze
-
-        run_analyze(config)
 
 
 def cmd_clean(args):
@@ -193,14 +188,9 @@ def main():
 
     subparsers.add_parser("collect", help="Fetch schedule and transcripts")
 
-    extract_parser = subparsers.add_parser("extract", help="Extract AI data (transcribe, slides, clean, analyze)")
-    extract_parser.add_argument(
-        "--skip-analyze",
-        action="store_true",
-        help="Skip the LLM analysis step (useful when Ollama is unavailable)",
-    )
+    subparsers.add_parser("extract", help="Extract AI data (transcribe, slides, clean)")
     subparsers.add_parser("clean", help="Normalize and structure data")
-    subparsers.add_parser("analyze", help="Run LLM analysis")
+    subparsers.add_parser("analyze", help="Run LLM analysis (requires Ollama)")
     subparsers.add_parser("visualize", help="Generate charts and diagrams")
     subparsers.add_parser("report", help="Render report templates")
     subparsers.add_parser("run", help="Run the full pipeline")
