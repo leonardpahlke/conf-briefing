@@ -289,6 +289,7 @@ _SECTION_CHARTS: dict[str, list[tuple[str, str]]] = {
         ("images/track_distribution.svg", "Track Distribution"),
         ("images/company_presence.svg", "Company Presence"),
         ("images/topic_frequency.svg", "Top Conference Topics"),
+        ("images/evidence_quality.svg", "Evidence Quality by Cluster"),
     ],
     "maturity": [
         ("images/maturity_strip.svg", "Technology Maturity Landscape"),
