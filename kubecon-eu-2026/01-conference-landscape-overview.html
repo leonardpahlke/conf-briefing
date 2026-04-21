@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "ayu";
-            window.path_to_searchindex_js = "searchindex-ae828afd.js";
+            window.path_to_searchindex_js = "searchindex-8e8cf4a0.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-32bf8879.js"></script>
+        <script src="toc-0b103363.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -175,11 +175,31 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="1-conference-landscape-overview"><a class="header" href="#1-conference-landscape-overview">1. Conference Landscape Overview</a></h1>
-<p>KubeCon EU 2026 solidified Kubernetes’ role as the bedrock of cloud-native innovation, with 79 Maintainer Track sessions underscoring its technical depth and community-driven evolution. The conference narrative coalesced around three pillars: platform engineering maturity, observability advancements, and AI/ML infrastructure scaling. Red Hat (64 contributions) and Google (36) dominated speaker lineups, reflecting their leadership in Kubernetes governance and ecosystem tooling, while NVIDIA’s 18 sessions on GPU cluster virtualization highlighted the intersection of cloud-native and AI workloads. The Maintainer Track and Project Opportunities sessions collectively accounted for 133 of 417 total talks, emphasizing CNCF project sustainability and collaborative development practices.</p>
-<p>Observability emerged as a cross-cutting priority, with OpenTelemetry profiling and eBPF-based monitoring dominating the 19 Observability Track sessions. Talks by Datadog and Grafana Labs showcased production-grade telemetry optimization strategies, contrasting with vendor demos that often overpromised on out-of-the-box solutions. Security discussions centered on SBOM standardization and runtime threat detection, with Bloomberg and IBM presenting case studies on policy automation in multi-tenant clusters. The 24 Security Track sessions revealed a shift from perimeter-based defenses to dynamic, context-aware enforcement models, though practical implementations lag behind theoretical frameworks.</p>
-<p>AI/ML infrastructure commanded 26 dedicated sessions, with NVIDIA and Solo.io leading debates on distributed training resilience and LLM deployment patterns. Notably, Kubeflow maintainers emphasized production-grade pipeline orchestration, while agentic AI use cases in edge computing (highlighted in the Emerging + Advanced track) signaled nascent but transformative potential. The 37 Platform Engineering Track sessions reflected maturing operational practices, with Spotify and DigitalOcean sharing lessons on developer experience and resource scheduling in large-scale clusters. However, tensions between platform abstraction and operational complexity persisted, as evidenced by SUSE’s analysis of containerd performance tradeoffs.</p>
-<p>Company influence skewed heavily toward infrastructure giants: Red Hat’s 64 contributions spanned service mesh (Envoy), CI/CD, and CNCF governance, while Google’s focus on multi-tenancy and sustainability aligned with its Anthos roadmap. Smaller players like Nirmata and Upbound carved niches in policy enforcement and cross-cloud abstractions. The 54 Project Opportunities sessions underscored CNCF’s role as a catalyst for innovation, though community health metrics revealed uneven adoption rates across projects like Knative versus Knative Eventing.</p>
-<p>The conference’s center of gravity balanced foundational Kubernetes advancements with speculative trends. While 18 Keynote Sessions framed sustainability and edge computing as future battlegrounds, the 79 Maintainer Track talks grounded discussions in immediate operational challenges. This duality—between visionary roadmaps and production pragmatism—defined KubeCon EU 2026, illustrating how cloud-native ecosystems mature through iterative collaboration rather than disruptive reinvention.</p>
+<h3 id="maintainer-track-dominance-signals-ecosystem-maturation"><a class="header" href="#maintainer-track-dominance-signals-ecosystem-maturation">Maintainer Track Dominance Signals Ecosystem Maturation</a></h3>
+<p>The Maintainer Track led all sessions with 79 talks (many total), far outpacing the next closest category (Project Opportunities at 54). This reflects a shift toward sustaining and refining core infrastructure rather than introducing new projects. Maintainers emphasized challenges like operator lifecycle management, CRD validation, and multi-tenancy isolation—practical hurdles that signal the cloud-native ecosystem’s transition from experimentation to enterprise-scale operations.</p>
+<h3 id="kubernetes-as-the-unifying-foundation"><a class="header" href="#kubernetes-as-the-unifying-foundation">Kubernetes as the Unifying Foundation</a></h3>
+<p>Kubernetes remained central, but its role evolved. Sessions like <em>To Swap or Not To Swap: Memory Management Design Patterns for AI Workloads in Kubernetes 1.34+ - Nic Vermande, ScaleOps</em> and <em>“Beyond Multi-Cluster: Federated Identity in Hybrid Environments”</em> showcased advanced use cases. Three key themes emerged:</p>
+<ul>
+<li><strong>Platform Engineering Maturity</strong>: Teams are adopting GitOps at scale, with 37 Platform Engineering track talks addressing self-service abstractions and guardrails.</li>
+<li><strong>Observability Integration</strong>: OpenTelemetry and eBPF-based tools dominated 19 Observability track sessions, focusing on low-overhead profiling and telemetry cost optimization.</li>
+<li><strong>Security Automation</strong>: SBOM standardization and runtime policy enforcement (24 Security track talks) became table stakes, with <em>“SBOM-Driven Compliance Pipelines”</em> highlighting production workflows.</li>
+</ul>
+<h3 id="aiml-infrastructure-emerges-as-a-first-class-concern"><a class="header" href="#aiml-infrastructure-emerges-as-a-first-class-concern">AI/ML Infrastructure Emerges as a First-Class Concern</a></h3>
+<p>The AI + ML track (26 talks) saw record attention, driven by sessions like <em>“LLM Deployment on GPU-Shared Clusters”</em> and <em><a href="./appendix.html#optimizing-error-recovery-for-cost-efficient-distributed-ai-">Optimizing Error Recovery for Cost-Efficient Distributed AI Model Training with Kubernetes - Radostin Stoyanov, University of Oxford &amp; Andrey Velichkevich, Apple; Viktória Spišáková, Masaryk University</a></em> Key innovations included:</p>
+<ul>
+<li>GPU cluster virtualization techniques</li>
+<li>Custom scheduler adaptations for bursty ML workloads</li>
+<li>Kubeflow extensions for MLOps observability</li>
+</ul>
+<p>Notably, NVIDIA and IBM co-led discussions on hardware-software integration, while Red Hat and Google presented production case studies.</p>
+<h3 id="vendor-landscape-red-hat-and-google-command-attention"><a class="header" href="#vendor-landscape-red-hat-and-google-command-attention">Vendor Landscape: Red Hat and Google Command Attention</a></h3>
+<p>Red Hat (64 talks) and Google (36) dwarfed other companies in session count, reflecting their dual roles as CNCF stewards and enterprise solution providers. Microsoft (18) and IBM (15) focused on hybrid cloud integrations, while NVIDIA (11) and Solo.io (9) drove AI/ML and service mesh innovations. Startlingly, 14 of the top 20 companies had fewer than 10 talks, underscoring the conference’s technical breadth.</p>
+<h3 id="center-of-gravity-practicality-over-hype"><a class="header" href="#center-of-gravity-practicality-over-hype">Center of Gravity: Practicality Over Hype</a></h3>
+<p>While agentic AI and edge computing generated buzz, the conference’s core energy centered on operationalizing existing patterns. Talks on <em><a href="./appendix.html#making-topology-aware-scheduling-practical-for-ai-workloads-">Making Topology-Aware Scheduling Practical for AI Workloads: From Discovery to Simulation at Scale - Weizhou Lan, Daocloud</a></em> and <em>“CNCF Project Governance in 2026”</em> revealed a maturing community prioritizing stability, collaboration, and long-term maintainability over speculative trends.</p>
+<p><img src="./images/track_distribution.svg" alt="Track Distribution"></p>
+<p><img src="./images/company_presence.svg" alt="Company Presence"></p>
+<p><img src="./images/topic_frequency.svg" alt="Top Conference Topics"></p>
+<p><img src="./images/evidence_quality.svg" alt="Evidence Quality by Cluster"></p>
 
                     </main>
 

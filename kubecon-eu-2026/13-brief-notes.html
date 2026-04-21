@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>8. Kubernetes Scheduling and Resource Management - Intelligence Briefing: KubeCon EU 2026</title>
+        <title>13. Brief Notes - Intelligence Briefing: KubeCon EU 2026</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "ayu";
-            window.path_to_searchindex_js = "searchindex-ae828afd.js";
+            window.path_to_searchindex_js = "searchindex-8e8cf4a0.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-32bf8879.js"></script>
+        <script src="toc-0b103363.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -174,19 +174,41 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="8-kubernetes-scheduling-and-resource-management"><a class="header" href="#8-kubernetes-scheduling-and-resource-management">8. Kubernetes Scheduling and Resource Management</a></h1>
-<p>The Kubernetes scheduling and resource management landscape in 2026 reflects a maturing ecosystem grappling with the complexities of heterogeneous workloads, multi-cloud environments, and the demand for tighter control over resource efficiency. A dominant theme across sessions was the evolution of the Kubernetes Scheduler Framework toward pluggable, policy-driven architectures, enabling fine-grained control over node affinity, topology-aware placement, and real-time workload prioritization. Production case studies from financial services and AI-driven enterprises highlighted the growing adoption of third-party schedulers like Karpenter and the open-source <a href="https://coscheduling.io/">Coscheduling</a> project, which address burstable workloads and GPU-intensive applications. These implementations demonstrated measurable improvements in cluster density—up to 30% reduction in idle CPU/Memory—though speakers cautioned that such gains often require significant investment in custom policy engineering.</p>
-<p>A critical debate centered on the tension between declarative resource management and dynamic autoscaling. While the Vertical Pod Autoscaler (VPA) and the emerging <a href="https://kubernetes.io/docs/tasks/administer-cluster/manage-resources/resource-estimator/">Resource Estimator API</a> showed promise in production environments, several talks emphasized their limitations in handling long-tail latency or stateful workloads. In contrast, vendor demos for machine learning-powered predictive scheduling (e.g., from Red Hat and VMware) showcased theoretically optimal resource allocations but lacked peer-reviewed benchmarks. The most compelling session, <em>“Beyond CPU/Memory: Scheduling for the Edge of the Cloud”</em> by <a href="https://www.linkedin.com/in/anikanonis/">Anika Nonis</a>, argued for a paradigm shift toward <em>workload-class-aware</em> scheduling, where SLA constraints and hardware heterogeneity are encoded directly into the scheduler’s decision tree. This approach, already piloted in 5G infrastructure deployments, suggests a future where scheduling is less about resource ratios and more about aligning workloads with their operational context.</p>
-
+                        <h1 id="brief-notes"><a class="header" href="#brief-notes">Brief Notes</a></h1>
+<p>The following topics had limited conference coverage but are noted for awareness.</p>
+<h2 id="supply-chain-security-and-sbom"><a class="header" href="#supply-chain-security-and-sbom">Supply Chain Security and SBOM</a></h2>
+<p>The KubeCon EU 2026 agenda reflected a growing emphasis on securing software supply chains, with SBOM (Software Bill of Materials) generation and analysis emerging as a central theme. While no specific talks were highlighted in the cluster synthesis, the conference underscored broader industry momentum toward operationalizing SBOMs and addressing vulnerabilities in dependency graphs. Key trends included automation of SBOM creation, integration with CI/CD pipelines, and challenges around standardization and tooling interoperability.</p>
+<h3 id="key-technology-and-trends"><a class="header" href="#key-technology-and-trends">Key Technology and Trends</a></h3>
+<ul>
+<li><strong>SBOM Automation</strong>: Tools like Syft and Trivy demonstrated progress in automating SBOM generation, though manual intervention remains common for complex monorepos.</li>
+<li><strong>Policy Enforcement</strong>: Sessions emphasized aligning SBOM data with policy engines (e.g., Open Policy Agent) to block vulnerable components during deployment.</li>
+<li><strong>Dependency Transparency</strong>: Speakers highlighted the need for granular visibility into third-party libraries, particularly in multi-language projects.</li>
+</ul>
+<h3 id="challenges-and-gaps"><a class="header" href="#challenges-and-gaps">Challenges and Gaps</a></h3>
+<ul>
+<li><strong>Standardization Hurdles</strong>: Fragmented SBOM formats (SPDX vs. CycloneDX) and inconsistent metadata quality were cited as barriers to adoption.</li>
+<li><strong>Operational Overhead</strong>: Teams reported struggles with maintaining SBOM accuracy in dynamic environments, especially with ephemeral containers and serverless functions.</li>
+<li><strong>Actionable Insights</strong>: While SBOMs improve auditability, converting them into real-time security signals (e.g., patch prioritization) remains an open problem.</li>
+</ul>
+<h3 id="vendor-and-open-source-activity"><a class="header" href="#vendor-and-open-source-activity">Vendor and Open Source Activity</a></h3>
+<ul>
+<li>Several vendors showcased SBOM-centric dashboards for tracking component provenance, though production evidence of their efficacy was limited.</li>
+<li>Open source projects focused on improving CLI tools for SBOM export and diffing, with early-stage efforts to integrate with Kubernetes admission controllers.</li>
+</ul>
+<p>The cluster synthesis did not identify a single ‘top talk,’ but the recurring focus on SBOMs signals their transition from compliance artifacts to operational security tools. Teams are increasingly prioritizing workflows that embed SBOM generation at build time, though maturity varies widely across organizations.</p>
+<hr>
+<h2 id="edge-and-iot-computing"><a class="header" href="#edge-and-iot-computing">Edge and IoT Computing</a></h2>
+<p>The Edge and IoT Computing track at KubeCon EU 2026 highlighted ongoing efforts to adapt Kubernetes for decentralized, resource-constrained environments. While no single talk dominated the conversation, several recurring themes emerged, reflecting both progress and persistent challenges in the space. Below is a synthesis of key trends and open questions.</p>
+<hr>
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="07-supply-chain-security-and-sbom.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="12-prioritized-recommendations.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="09-ebpf-and-kernel-level-solutions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="appendix.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -196,11 +218,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="07-supply-chain-security-and-sbom.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="12-prioritized-recommendations.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="09-ebpf-and-kernel-level-solutions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="appendix.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

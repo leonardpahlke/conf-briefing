@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>10. Edge and IoT Computing - Intelligence Briefing: KubeCon EU 2026</title>
+        <title>12. Prioritized Recommendations - Intelligence Briefing: KubeCon EU 2026</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "ayu";
-            window.path_to_searchindex_js = "searchindex-ae828afd.js";
+            window.path_to_searchindex_js = "searchindex-8e8cf4a0.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-32bf8879.js"></script>
+        <script src="toc-0b103363.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -174,19 +174,36 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="10-edge-and-iot-computing"><a class="header" href="#10-edge-and-iot-computing">10. Edge and IoT Computing</a></h1>
-<p>The Edge and IoT Computing cluster at KubeCon EU 2026 underscored a maturing ecosystem where cloud-native principles are being reimagined for decentralized, latency-sensitive environments. A dominant theme was the rise of <em>edge-native Kubernetes architectures</em>, driven by the need to balance compute efficiency with the dynamic scaling demands of IoT workloads. Talks across the cluster emphasized lightweight distributions like K3s and K0s, which strip down Kubernetes to under 50MB for deployment on resource-constrained edge devices, enabling orchestration of thousands of IoT sensors and actuators. Notably, a production case study from a European smart-grid operator demonstrated how K3s, paired with IoT operators for device lifecycle management, reduced latency by 40% in real-time energy distribution systems. This practical evidence contrasted with vendor demos promoting proprietary edge platforms, which often lack open-source interoperability or proven scalability beyond lab settings.</p>
-<p>Security emerged as a cross-cutting concern, with several sessions highlighting the risks of unpatched edge nodes and insecure device communication. A standout presentation by the CNCF’s Edge Working Group proposed a zero-trust framework for IoT, leveraging Kubernetes’ RBAC and network policies to segment edge clusters. However, the group acknowledged gaps in standardizing device authentication for legacy IoT hardware, a challenge still in the theoretical phase. Meanwhile, the integration of AI/ML at the edge—discussed in a keynote by Arm’s principal engineer—showcased Kubernetes’ role in managing inference workloads on ARM-based edge GPUs, though most examples remained proof-of-concept. The cluster’s most compelling trend was the convergence of edge computing with 5G infrastructure, as illustrated by a joint Ericsson-Red Hat demo of Kubernetes-managed edge nodes in telco networks. While this use case remains in early adoption, it signals a shift toward cloud-native tools as the backbone of next-generation IoT ecosystems.</p>
+                        <h1 id="12-prioritized-recommendations"><a class="header" href="#12-prioritized-recommendations">12. Prioritized Recommendations</a></h1>
+<h3 id="start-now"><a class="header" href="#start-now">Start Now</a></h3>
+<h3 id="evolving-policy-management-with-agentic-ai-kyverno-mcp-and-kagent-for-multi-cluster-governance---shuting-zhao-nirmata--dahu-kuang-alibaba-cloud"><a class="header" href="#evolving-policy-management-with-agentic-ai-kyverno-mcp-and-kagent-for-multi-cluster-governance---shuting-zhao-nirmata--dahu-kuang-alibaba-cloud">Evolving Policy Management with Agentic AI: Kyverno MCP and Kagent for Multi-Cluster Governance - Shuting Zhao, Nirmata &amp; Dahu Kuang, Alibaba Cloud</a></h3>
+<p>Use Kyverno (CNCF graduated) to centralize validation, mutation, and reporting across clusters via CEL-based policies. Production evidence from multiple talks confirms its role as a ‘fundamental toolset’ for Kubernetes-native governance, with live demos of remediation workflows in heterogeneous environments.</p>
+<h3 id="upgrade-emissary-ingress-to-v401-to-address-envoy-vulnerabilities"><a class="header" href="#upgrade-emissary-ingress-to-v401-to-address-envoy-vulnerabilities">Upgrade Emissary-ingress to v4.0.1 to address Envoy vulnerabilities</a></h3>
+<p>An explicit warning in the AI/ML track highlights that v3.10 uses an outdated Envoy version with known security flaws. v4.0.1 is stable and recommended for production, making this a zero-risk upgrade path.</p>
+<h3 id="implement-fluentbit-with-messagepack-for-telemetry-pipelines"><a class="header" href="#implement-fluentbit-with-messagepack-for-telemetry-pipelines">Implement FluentBit with MessagePack for telemetry pipelines</a></h3>
+<p>FluentBit’s 10-year production track record and CNCF backing validate its efficiency gains: MessagePack reduces payload size by 33% (18 vs. 27 bytes) and batching minimizes system call overhead. This is critical for high-volume observability at scale.</p>
+<h3 id="adopt-kubernetes-operators-for-cross-domain-automation"><a class="header" href="#adopt-kubernetes-operators-for-cross-domain-automation">Adopt Kubernetes Operators for cross-domain automation</a></h3>
+<p>Swisscom’s 5G deployment case study (Operators for IP management/testing) demonstrates Operators’ ability to encapsulate domain knowledge and enable drift detection. Open-source tooling like NetBox operator reduces deployment time from days to hours.</p>
+<h3 id="evaluate"><a class="header" href="#evaluate">Evaluate</a></h3>
+<h3 id="evaluate-sbom-normalization-tools-for-consistent-vulnerability-reporting"><a class="header" href="#evaluate-sbom-normalization-tools-for-consistent-vulnerability-reporting">Evaluate SBOM normalization tools for consistent vulnerability reporting</a></h3>
+<p>Production analysis shows SBOM tools produce inconsistent results due to non-standard package URL encoding. Adopting SPDX/CycloneDX compliance and normalization scripts (validated with Docker Hub image tests) can mitigate this risk for supply chain security.</p>
+<h3 id="integrate-hardware-exporters-with-prometheus-for-ml-workload-observability"><a class="header" href="#integrate-hardware-exporters-with-prometheus-for-ml-workload-observability">Integrate hardware exporters with Prometheus for ML workload observability</a></h3>
+<p>CERN’s production stack extends Kubernetes monitoring with NVIDIA/AMD GPU and IPMI exporters to track energy consumption and GPU utilization. This addresses default Kubernetes metrics’ limitations for AI/ML workloads but requires planning for scalability (e.g., 2.3M time series).</p>
+<h3 id="track"><a class="header" href="#track">Track</a></h3>
+<h3 id="optimizing-error-recovery-for-cost-efficient-distributed-ai-model-training-with-kubernetes---radostin-stoyanov-university-of-oxford--andrey-velichkevich-apple-viktória-spišáková-masaryk-university"><a class="header" href="#optimizing-error-recovery-for-cost-efficient-distributed-ai-model-training-with-kubernetes---radostin-stoyanov-university-of-oxford--andrey-velichkevich-apple-viktória-spišáková-masaryk-university">Optimizing Error Recovery for Cost-Efficient Distributed AI Model Training with Kubernetes - Radostin Stoyanov, University of Oxford &amp; Andrey Velichkevich, Apple; Viktória Spišáková, Masaryk University</a></h3>
+<p>University of Oxford/Apple’s trial implementation reduced compute loss by 34 days in production scenarios, but GPU checkpointing remains in trial maturity. Monitor ongoing optimizations before adopting for critical workloads.</p>
+<h3 id="participate-in-merge-forward-initiatives-for-inclusive-open-source-practices"><a class="header" href="#participate-in-merge-forward-initiatives-for-inclusive-open-source-practices">Participate in Merge Forward initiatives for inclusive open source practices</a></h3>
+<p>Merge Forward’s strategies—embedding accessibility (captions, sign language) and co-designing with underrepresented groups—are critical for long-term community sustainability. Early engagement is needed to shape structural inclusion frameworks.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="09-ebpf-and-kernel-level-solutions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="11-technology-maturity-assessment.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="11-cross-cutting-themes.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="13-brief-notes.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -196,11 +213,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="09-ebpf-and-kernel-level-solutions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="11-technology-maturity-assessment.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="11-cross-cutting-themes.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="13-brief-notes.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

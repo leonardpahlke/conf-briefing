@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>11. Cross-Cutting Themes - Intelligence Briefing: KubeCon EU 2026</title>
+        <title>11. Technology Maturity Assessment - Intelligence Briefing: KubeCon EU 2026</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "ayu";
-            window.path_to_searchindex_js = "searchindex-ae828afd.js";
+            window.path_to_searchindex_js = "searchindex-8e8cf4a0.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-32bf8879.js"></script>
+        <script src="toc-0b103363.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -174,23 +174,26 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="11-cross-cutting-themes"><a class="header" href="#11-cross-cutting-themes">11. Cross-Cutting Themes</a></h1>
-<p>KubeCon EU 2026 underscored four interdependent themes that are reshaping cloud-native engineering: automation and platform engineering, observability and telemetry, standardization and interoperability, and AI-driven automation. These themes intersect across clusters, revealing systemic challenges and opportunities in scaling cloud-native architectures.</p>
-<p><strong>Automation and platform engineering</strong> emerged as a foundational pillar, with Kubernetes Operators and declarative workflows enabling cross-domain orchestration. Swisscom and IBM demonstrated how operators can automate tasks like IP management and router configuration, reducing manual coordination. However, these solutions require careful integration with legacy systems and user interfaces, as highlighted in the <em>Platform Engineering and DevOps Practices</em> talk. This theme also intersects with AI-driven automation, where Operators are increasingly augmented by policy engines like Kyverno to enforce governance across multi-cluster environments. The <em>AI/ML and LLM Workloads</em> session emphasized how declarative automation is critical for managing the complexity of AI/ML pipelines, where reproducibility and resource isolation are paramount.</p>
-<p><strong>Observability and telemetry</strong> evolved beyond metrics collection to encompass governance and sustainability. Talks on <em>Cloud-Native Sustainability and Green Computing</em> stressed the need for hardware-level monitoring tools like Kepler and IPMI to track energy consumption, while the <em>Security and Policy Enforcement</em> cluster highlighted SBOM standardization as a means to reduce false positives in vulnerability scanning. OpenTelemetry and Prometheus were positioned as cornerstones for scalable telemetry, but gaps in schema consistency and SLA enforcement remain. The interplay between observability and sustainability is particularly striking: granular hardware metrics enable green computing optimizations, while security-focused telemetry ensures compliance with regulatory requirements.</p>
-<p><strong>Standardization and interoperability</strong> surfaced as a critical enabler for cross-cluster collaboration. Inconsistent SBOM reporting and package URL encoding, as discussed in the <em>Security and Policy Enforcement</em> and <em>Networking and Service Meshes</em> sessions, create friction in supply chain security and service mesh configurations. CNAM/Thales and NVIDIA/Huawei advocated for declarative metadata standards like SPDX and CycloneDX, arguing that interoperability is non-negotiable for multi-vendor ecosystems. This theme also ties into open source contributions, where standardized interfaces lower barriers to community-driven innovation. The <em>Open Source and Community Contributions</em> talk noted that without common formats, even well-intentioned projects risk fragmentation.</p>
-<p>Finally, <strong>AI-driven automation</strong> is redefining governance and threat response. Agentic AI and policy engines like Kyverno, showcased in the <em>Security and Policy Enforcement</em> cluster, are streamlining multi-cluster compliance but introduce risks like model drift and hallucination. The <em>Emerging Technologies and Future Trends</em> session warned that operational stability hinges on human-in-the-loop validation, particularly for high-stakes decisions. This theme bridges AI/ML workloads and security, as machine learning models themselves require observability and governance to avoid becoming sources of technical debt.</p>
-<p>The convergence of these themes reveals a maturing cloud-native ecosystem. Automation and AI depend on standardized, observable systems to function reliably, while sustainability and security initiatives gain traction only when underpinned by interoperable tooling. The key takeaway is that cloud-native engineering is shifting from isolated optimizations to holistic architecture—where every layer, from hardware telemetry to policy enforcement, must align with cross-cutting principles of automation, standardization, and governance.</p>
+                        <h1 id="11-technology-maturity-assessment"><a class="header" href="#11-technology-maturity-assessment">11. Technology Maturity Assessment</a></h1>
+<h3 id="adopt"><a class="header" href="#adopt">Adopt</a></h3>
+<p><strong>Kubernetes Operators</strong> are now production-proven at scale, with Swisscom automating 5G workflows and reducing deployment times from days to hours. Adopters should prioritize open-source contributions and operator lifecycle management to avoid vendor lock-in. <strong>LLMD + vLLM</strong> for LLM inference demonstrated measurable performance gains in hybrid cloud fleets, but teams must validate compatibility with existing ML frameworks before adoption. <strong>Volcano</strong> has replaced default Kubernetes scheduling in AI/ML and Spark workloads at Daocloud and Feedzai, offering topology-aware scheduling and subgroup constraints—critical for GPU-intensive environments.</p>
+<h3 id="trial"><a class="header" href="#trial">Trial</a></h3>
+<p><strong>Agentic AI</strong> for Kubernetes threat response (e.g., Orange’s autonomous agents) shows promise but requires rigorous validation against hallucination risks and model drift. Early adopters should implement human-in-the-loop safeguards. <strong>Carbon Cutter</strong>, a CNCF incubator project for sustainability, needs broader contributor diversity and governance clarity before production use. Its energy-aware scheduling features are compelling but unproven in multi-tenant clusters.</p>
+<h3 id="assess"><a class="header" href="#assess">Assess</a></h3>
+<p><strong>SBOM tools</strong> (Trivvy, Sift, Scout) face interoperability roadblocks due to inconsistent vulnerability reporting and PURL standards. Teams should avoid vendor-specific workflows until SPDX/ECMA alignment matures. <strong>Workload-Aware Scheduling (WAS)</strong> lacks queue-awareness and auto-scaling resolution, making it unsuitable for dynamic workloads. Operators should stick with Volcano or NVIDIA K-Scheduler for now.</p>
+<h3 id="hold"><a class="header" href="#hold">Hold</a></h3>
+<p><strong>Kubernetes API Reference Generator</strong> remains fragile due to legacy dependencies and frequent failures. Its recent improvements in error handling are insufficient for mission-critical documentation pipelines. Deprioritize until CNCF addresses its architectural debt.</p>
+<p><img src="./images/maturity_strip.svg" alt="Technology Maturity Landscape"></p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="10-edge-and-iot-computing.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="10-debates-and-contradictions.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="12-debates-and-contradictions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="12-prioritized-recommendations.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -200,11 +203,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="10-edge-and-iot-computing.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="10-debates-and-contradictions.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="12-debates-and-contradictions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="12-prioritized-recommendations.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
