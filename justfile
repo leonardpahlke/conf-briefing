@@ -133,6 +133,10 @@ query event question:
 extract-check event:
     {{ _run }} python -c "from conf_briefing.extract.preflight import check_extract_ready; from conf_briefing.config import load_config; check_extract_ready(load_config('events/{{event}}.toml'))"
 
+# Build and serve the report as an mdBook (opens browser)
+report-book event:
+    cd events/{{event}}/reports/book && mdbook serve --open
+
 # --- Docs ---
 
 # Build the mdbook documentation

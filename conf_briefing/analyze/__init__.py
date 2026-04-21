@@ -1,12 +1,20 @@
-"""LLM-based analysis: agenda, cluster ranking, recordings."""
+"""LLM-based analysis: per-talk, clustering, ranking, synthesis."""
 
-from conf_briefing.analyze.agenda import analyze_agenda
+from conf_briefing.analyze.agenda import cluster_talks
 from conf_briefing.analyze.ranking import rank_clusters
-from conf_briefing.analyze.recordings import analyze_recordings
+from conf_briefing.analyze.recordings import analyze_talks
+from conf_briefing.analyze.synthesis import synthesize_clusters, synthesize_global
 from conf_briefing.config import Config
 from conf_briefing.console import console, tag
 
-__all__ = ["analyze_agenda", "analyze_recordings", "rank_clusters", "run_analyze"]
+__all__ = [
+    "analyze_talks",
+    "cluster_talks",
+    "rank_clusters",
+    "synthesize_clusters",
+    "synthesize_global",
+    "run_analyze",
+]
 
 
 def run_analyze(config: Config) -> None:
@@ -22,7 +30,9 @@ def run_analyze(config: Config) -> None:
         )
 
     console.print(f"{tag('analyze')} Analyzing data for: {config.conference.name}")
-    analyze_agenda(config)
-    rank_clusters(config)
-    analyze_recordings(config)
+    analyze_talks(config)          # Phase 1: per-talk analysis
+    cluster_talks(config)          # Phase 2: content-based clustering
+    rank_clusters(config)          # Phase 3: cluster ranking
+    synthesize_clusters(config)    # Phase 4: per-cluster synthesis
+    synthesize_global(config)      # Phase 5: global synthesis
     console.print(f"{tag('analyze')} Done.")

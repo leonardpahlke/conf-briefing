@@ -559,4 +559,12 @@ def load_chunks(config: Config) -> list[Chunk]:
     for c in chunks:
         c.metadata["chunk_type"] = c.chunk_type
 
-    return chunks
+    # Deduplicate by ID (keep first occurrence)
+    seen: set[str] = set()
+    deduped: list[Chunk] = []
+    for c in chunks:
+        if c.id not in seen:
+            seen.add(c.id)
+            deduped.append(c)
+
+    return deduped

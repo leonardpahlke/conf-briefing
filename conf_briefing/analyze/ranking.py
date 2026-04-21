@@ -37,7 +37,11 @@ For each cluster, produce a JSON array sorted by relevance (most relevant first)
 ]
 
 Be specific about why each cluster is or isn't relevant. \
-Recommend the top 3-5 talks per cluster."""
+Recommend the top 3-5 talks per cluster.
+
+Score calibration: distribute relevance_score across the full 0.0-1.0 range. \
+The most relevant cluster should score above 0.9 and the least relevant below 0.3. \
+Avoid clustering all scores in the 0.6-0.9 range."""
 
 
 def rank_clusters(config: Config) -> Path | None:
@@ -49,6 +53,11 @@ def rank_clusters(config: Config) -> Path | None:
     if not agenda_path.exists():
         console.print(f"{tag('analyze')} No agenda analysis found, skipping ranking.")
         return None
+
+    # Cache check: skip if output is newer than input
+    if out_path.exists() and out_path.stat().st_mtime > agenda_path.stat().st_mtime:
+        console.print(f"{tag('analyze')} Cluster ranking is up-to-date, skipping.")
+        return out_path
 
     agenda = load_json_file(agenda_path)
     clusters = agenda.get("clusters", [])

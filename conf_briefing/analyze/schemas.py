@@ -141,3 +141,29 @@ class SynthActions(BaseModel):
     recommended_actions: list[RecommendedAction] = Field(min_length=1)
 
 
+# --- Agenda / clustering schemas ---
+
+
+class AgendaCluster(BaseModel):
+    name: str
+    description: str
+    talks: list[str]
+    keywords: list[str]
+    companies: list[str]
+
+
+class AgendaClustering(BaseModel):
+    """LLM output for clustering (excludes programmatically-computed fields)."""
+
+    clusters: list[AgendaCluster]
+    top_keywords: list[str]
+    narrative: str
+
+
+class AgendaAnalysis(BaseModel):
+    clusters: list[AgendaCluster]
+    top_keywords: list[str]
+    company_presence: dict[str, int]
+    track_distribution: dict[str, int]
+    narrative: str
+

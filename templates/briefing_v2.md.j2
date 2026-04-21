@@ -1,0 +1,76 @@
+# Intelligence Briefing: {{ conference_name }}
+
+> {{ outline.thesis }}
+
+---
+
+## Executive Summary
+
+{{ executive_summary.summary }}
+
+### Key Findings
+
+{% for finding in executive_summary.key_findings -%}
+- {{ finding }}
+{% endfor %}
+
+### Recommended Actions
+
+{% for action in executive_summary.top_actions -%}
+- {{ action }}
+{% endfor %}
+
+---
+
+{% for section in sections %}
+## {{ loop.index }}. {{ section.title }}
+
+{{ section.prose }}
+
+{% if section.quotes %}
+<details>
+<summary>Sources</summary>
+
+{% for q in section.quotes -%}
+- {{ q.talk_title }}{% if q.speaker %} ({{ q.speaker }}){% endif %}{% if q.timestamp_sec %} at {{ (q.timestamp_sec // 60) | int }}:{{ "%02d" | format((q.timestamp_sec % 60) | int) }}{% endif %}
+
+{% endfor %}
+</details>
+{% endif %}
+
+---
+
+{% endfor %}
+
+{% if appendix_talks %}
+## Appendix: Selected Talk Summaries
+
+{% for talk in appendix_talks %}
+### {{ talk.title }}
+
+{% if talk.cluster %}*Cluster: {{ talk.cluster }}*{% endif %}
+{% if talk.evidence_quality or talk.speaker_perspective %} | {% if talk.evidence_quality %}Evidence: {{ talk.evidence_quality }}{% endif %}{% if talk.speaker_perspective %} | Perspective: {{ talk.speaker_perspective }}{% endif %}{% endif %}
+
+{% if talk.summary %}
+{{ talk.summary }}
+{% endif %}
+
+{% if talk.key_takeaways %}
+**Key Takeaways:**
+{% for kt in talk.key_takeaways -%}
+- {{ kt }}
+{% endfor %}
+{% endif %}
+
+{% if talk.tools_and_projects %}
+**Tools & Projects:** {{ talk.tools_and_projects | join(", ") }}
+{% endif %}
+
+---
+
+{% endfor %}
+{% endif %}
+
+---
+
+*Generated {{ generated_at }} using {{ model }}*

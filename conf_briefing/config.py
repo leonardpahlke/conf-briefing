@@ -73,12 +73,21 @@ class AnalyzeConfig:
 
 
 @dataclass
+class ReportConfig:
+    word_budget: int = 8000  # total target word count (excluding appendix)
+    max_quotes_per_section: int = 3  # cap on transcript quotes per deep-dive section
+    appendix_strategy: str = "top_talks_only"  # "top_talks_only", "by_cluster", "none"
+    skip_enrichment: bool = False  # skip Phase 3 for faster iteration
+
+
+@dataclass
 class Config:
     conference: ConferenceConfig = field(default_factory=ConferenceConfig)
     extract: ExtractConfig = field(default_factory=ExtractConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
     query: QueryConfig = field(default_factory=QueryConfig)
     analyze: AnalyzeConfig = field(default_factory=AnalyzeConfig)
+    report: ReportConfig = field(default_factory=ReportConfig)
     data_dir: Path = Path("data")
 
 
@@ -160,12 +169,17 @@ def load_config(path: str | Path) -> Config:
     _warn_unknown(analyze_raw, _field_names(AnalyzeConfig), "analyze")
     analyze = _build_dataclass(AnalyzeConfig, analyze_raw)
 
+    report_raw = raw.get("report", {})
+    _warn_unknown(report_raw, _field_names(ReportConfig), "report")
+    report = _build_dataclass(ReportConfig, report_raw)
+
     return Config(
         conference=conference,
         extract=extract,
         llm=llm,
         query=query,
         analyze=analyze,
+        report=report,
         data_dir=data_dir,
     )
 

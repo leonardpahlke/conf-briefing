@@ -16,7 +16,7 @@ def _get_embedding_function(config: Config):
 
     return OllamaEmbeddingFunction(
         model_name=config.query.embedding_model,
-        url=f"{config.query.ollama_base_url}/api/embed",
+        url=config.query.ollama_base_url,
     )
 
 
@@ -37,7 +37,7 @@ def build_index(config: Config, chunks: list[Chunk]) -> int:
     ef = _get_embedding_function(config)
 
     # Full rebuild: delete existing collection if present
-    with contextlib.suppress(ValueError):
+    with contextlib.suppress(ValueError, Exception):
         client.delete_collection(COLLECTION_NAME)
 
     collection = client.get_or_create_collection(

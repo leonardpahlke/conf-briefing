@@ -1,4 +1,4 @@
-"""Recording analysis: summarize transcripts, extract insights."""
+"""Recording analysis: per-talk transcript analysis (Phase 1)."""
 
 import json
 import re
@@ -7,10 +7,6 @@ from pathlib import Path
 
 from conf_briefing.analyze.llm import query_llm_json
 from conf_briefing.analyze.schemas import (
-    SynthActions,
-    SynthNarrative,
-    SynthSignals,
-    SynthTensions,
     TalkCore,
     TalkSignals,
 )
@@ -59,18 +55,24 @@ Track: {track}
 Transcript:
 {transcript}
 
+If the transcript contains obvious speech-recognition errors, interpret the intended meaning \
+rather than quoting garbled text.
+
 Extract as JSON:
-- title: exact talk title
+- title: exact talk title as shown above
 - summary: 3-5 sentences capturing the core message. Include any concrete metrics stated.
 - key_takeaways: 3-5 most important points an attendee should remember. Be specific and actionable.
 - problems_discussed: 2-4 technical challenges the speaker addresses. Name the specific problem.
-- tools_and_projects: all technologies, tools, OSS projects mentioned by name.
+- tools_and_projects: technologies the speaker evaluates, demonstrates, or has direct experience \
+with. Omit technologies only mentioned in passing.
 - qa_highlights: notable Q&A exchanges, if present in transcript. Empty list if no Q&A.
 - evidence_quality: "production" (real workload data), "proof_of_concept" (demo/prototype), \
 "theoretical" (design/proposal), "vendor_demo" (vendor showing product).
 - speaker_perspective: "practitioner" (building/operating), "vendor" (selling), \
 "maintainer" (OSS maintainer), "academic" (researcher). Judge by content, not job title.
 - references: URLs, GitHub repos, paper citations from slides or transcript. Empty list if none.
+
+For evidence fields, provide 1-2 sentences of specific evidence from the talk.
 
 IMPORTANT: key_takeaways, problems_discussed, and tools_and_projects must each have at least 1 item."""
 
@@ -84,19 +86,25 @@ Track: {track}
 Transcript:
 {transcript}
 
+If the transcript contains obvious speech-recognition errors, interpret the intended meaning \
+rather than quoting garbled text.
+
 Extract as JSON:
-- maturity_assessments: per-technology assessment. For each technology mentioned, provide:
+- maturity_assessments: assess technologies the speaker evaluates or has hands-on experience with. \
+Skip technologies only mentioned in passing. For each:
   - technology: name (e.g. "Kueue", "Cilium")
-  - maturity: "assess" (worth looking at), "trial" (safe to experiment), "adopt" (proven), "hold" (reconsider)
-  - evidence: brief evidence from the talk
+  - maturity: the technology's readiness level based on evidence in the talk. \
+"assess" (worth looking at), "trial" (safe to experiment), "adopt" (proven), "hold" (reconsider)
+  - evidence: 1-2 sentences of specific evidence from the talk
   List at least 1 technology.
 - caveats_and_concerns: limitations, warnings, or open problems mentioned. List at least 1.
-- technology_stance: per-technology sentiment:
+- technology_stance: the speaker's personal attitude toward the technology (may differ from maturity):
   - technology: name
   - stance: "enthusiastic" (strong advocacy), "cautious" (mentions risks), "critical" (argues against), "neutral"
-  - evidence: brief quote or paraphrase
+  - evidence: 1-2 sentences of specific evidence from the talk
 - relationships: technology relationships explicitly stated. BOTH entity_a and entity_b must be \
-named technologies, e.g. "Kueue competes_with Volcano", "Cilium replaces kube-proxy".
+named technologies, e.g. "Kueue competes_with Volcano", "Cilium replaces kube-proxy". \
+If no explicit technology relationships are stated, return an empty list. Do not invent relationships.
   - entity_a: first technology name (MUST NOT be empty)
   - relation: one of "replaces", "competes_with", "builds_on", "integrates_with", "extends"
   - entity_b: second technology name"""
@@ -167,6 +175,9 @@ def analyze_single_talk(config: Config, session: dict) -> dict | None:
     # Merge into single dict
     merged = {**core_result, **signals_result}
 
+    # Overwrite title with exact session title (avoid LLM paraphrasing)
+    merged["title"] = session["title"]
+
     # Post-processing: drop relationships where entity_a is empty
     if "relationships" in merged:
         merged["relationships"] = _filter_empty_relationships(merged["relationships"])
@@ -174,189 +185,24 @@ def analyze_single_talk(config: Config, session: dict) -> dict | None:
     return merged
 
 
-# --- Synthesis: split into 4 focused calls ---
-
-SYNTH_NARRATIVE_PROMPT = """\
-Synthesize a narrative overview from these conference talk analyses.
-
-Conference: "{conference_name}"
-
-Individual talk analyses:
-{analyses_json}
-
-Produce JSON with:
-- narrative: 4-6 paragraph markdown overview of key insights across all talks. \
-Cover the major themes, notable trends, and overall conference direction.
-- cross_cutting_themes: themes appearing across multiple talks. Identify at least 4 themes. Each with:
-  - theme: short name
-  - description: 2-3 sentences
-  - supporting_talks: list of talk titles that discuss this theme
-- common_problems: shared technical challenges across talks. List at least 5 specific problems."""
-
-SYNTH_SIGNALS_PROMPT = """\
-Extract technology signals from these conference talk analyses.
-
-Conference: "{conference_name}"
-
-Individual talk analyses:
-{analyses_json}
-
-Produce JSON with:
-- emerging_technologies: technologies mentioned across multiple talks. For each:
-  - technology: name
-  - mentions: count of talks mentioning it
-  - context: 1-2 sentence summary of how it was discussed
-  List at least 5 technologies.
-- technology_relationships: aggregate technology relationships from individual talks. \
-BOTH entity_a and entity_b must be named technologies. Merge duplicates, list supporting talks.
-  - entity_a: first technology (MUST NOT be empty)
-  - relation: relationship type
-  - entity_b: second technology
-  - supporting_talks: talk titles"""
-
-SYNTH_TENSIONS_PROMPT = """\
-Identify tensions and maturity assessments from these conference talk analyses.
-
-Conference: "{conference_name}"
-
-Individual talk analyses:
-{analyses_json}
-
-Produce JSON with:
-- tensions: talks that contradict each other or present opposing approaches. For each:
-  - topic: what the disagreement is about
-  - side_a: {{position, supporting_talks}}
-  - side_b: {{position, supporting_talks}}
-  - severity: "fundamental", "significant", or "minor"
-  - implication: what this means for practitioners
-  Identify at least 2 tensions.
-- maturity_landscape: aggregate maturity assessments. One entry per technology. For each:
-  - technology: name
-  - ring: "assess", "trial", "adopt", or "hold"
-  - evidence_quality: "anecdotal", "case_study", "benchmarked", or "production_proven"
-  - supporting_talks: talk titles
-  - rationale: why this ring placement
-  List at least 5 technologies."""
-
-SYNTH_ACTIONS_PROMPT = """\
-Recommend actions based on these conference talk analyses.
-
-Conference: "{conference_name}"
-
-Individual talk analyses:
-{analyses_json}
-
-Produce JSON with:
-- recommended_actions: concrete next steps for an attendee. Be specific and actionable. For each:
-  - action: specific thing to do (e.g. "Evaluate Kueue for batch ML workloads")
-  - category: "evaluate", "watch", "talk_to", "adopt", or "avoid"
-  - urgency: "immediate", "next_quarter", or "long_term"
-  - supporting_evidence: brief evidence from the talks
-  List at least 5 actions."""
-
-
-def _condense_for_synthesis(analyses: list[dict]) -> list[dict]:
-    """Trim per-talk analyses to essential fields for synthesis prompt."""
-    keep_fields = [
-        "title",
-        "summary",
-        "key_takeaways",
-        "tools_and_projects",
-        "problems_discussed",
-        "evidence_quality",
-        "speaker_perspective",
-        "maturity_assessments",
-        "caveats_and_concerns",
-        "technology_stance",
-        "relationships",
-    ]
-    condensed = []
-    for talk in analyses:
-        entry = {k: talk[k] for k in keep_fields if k in talk}
-        condensed.append(entry)
-    return condensed
-
-
-def synthesize_analyses(config: Config, analyses: list[dict]) -> dict:
-    """Synthesize insights across all talk analyses via 4 focused LLM calls."""
-    condensed = _condense_for_synthesis(analyses)
-    analyses_json = json.dumps(condensed, indent=2, ensure_ascii=False)
-
-    fmt_kwargs = {
-        "conference_name": config.conference.name,
-        "analyses_json": analyses_json,
-    }
-
-    # Fire all 4 synthesis calls in parallel (independent inputs)
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        narrative_future = pool.submit(
-            query_llm_json,
-            config,
-            SYSTEM_PROMPT,
-            SYNTH_NARRATIVE_PROMPT.format(**fmt_kwargs),
-            max_tokens=8192,
-            schema=SynthNarrative,
-        )
-        signals_future = pool.submit(
-            query_llm_json,
-            config,
-            SYSTEM_PROMPT,
-            SYNTH_SIGNALS_PROMPT.format(**fmt_kwargs),
-            max_tokens=4096,
-            schema=SynthSignals,
-        )
-        tensions_future = pool.submit(
-            query_llm_json,
-            config,
-            SYSTEM_PROMPT,
-            SYNTH_TENSIONS_PROMPT.format(**fmt_kwargs),
-            max_tokens=6144,
-            schema=SynthTensions,
-        )
-        actions_future = pool.submit(
-            query_llm_json,
-            config,
-            SYSTEM_PROMPT,
-            SYNTH_ACTIONS_PROMPT.format(**fmt_kwargs),
-            max_tokens=4096,
-            schema=SynthActions,
-        )
-        narrative_result = narrative_future.result()
-        signals_result = signals_future.result()
-        tensions_result = tensions_future.result()
-        actions_result = actions_future.result()
-
-    # Merge all results
-    merged = {**narrative_result, **signals_result, **tensions_result, **actions_result}
-
-    # Post-processing: drop technology_relationships where entity_a is empty
-    if "technology_relationships" in merged:
-        merged["technology_relationships"] = _filter_empty_relationships(
-            merged["technology_relationships"]
-        )
-
-    return merged
-
-
-def analyze_recordings(config: Config) -> Path | None:
-    """Analyze all recording transcripts."""
+def analyze_talks(config: Config) -> Path | None:
+    """Analyze all recording transcripts (Phase 1: per-talk analysis)."""
     data_dir = config.data_dir
     matched_path = data_dir / "matched.json"
-    out_path = data_dir / "analysis_recordings.json"
 
     if not matched_path.exists():
         # Fall back to schedule_clean if no matched data
         matched_path = data_dir / "schedule_clean.json"
 
     if not matched_path.exists():
-        console.print(f"{tag('analyze')} No data found, skipping recording analysis.")
+        console.print(f"{tag('analyze')} No data found, skipping talk analysis.")
         return None
 
     sessions = load_json_file(matched_path)
     sessions_with_transcripts = [s for s in sessions if s.get("transcript")]
 
     if not sessions_with_transcripts:
-        console.print(f"{tag('analyze')} No transcripts found, skipping recording analysis.")
+        console.print(f"{tag('analyze')} No transcripts found, skipping talk analysis.")
         return None
 
     # Filter non-analytical sessions
@@ -388,17 +234,7 @@ def analyze_recordings(config: Config) -> Path | None:
 
     if not to_analyze:
         console.print(f"{tag('analyze')} All talks already analyzed.")
-        # Still re-synthesize if synthesis file is missing
-        if not out_path.exists() and existing_analyses:
-            console.print(
-                f"{tag('analyze')} Synthesizing insights across {len(existing_analyses)} talks..."
-            )
-            with console.status(f"{tag('analyze')} Synthesizing..."):
-                synthesis = synthesize_analyses(config, existing_analyses)
-            synthesis["individual_talks"] = existing_analyses
-            out_path.write_text(json.dumps(synthesis, indent=2, ensure_ascii=False))
-            console.print(f"{tag('analyze')} Recording analysis saved to {out_path}")
-        return out_path
+        return individual_path
 
     console.print(
         f"{tag('analyze')} Analyzing {len(to_analyze)} talk transcripts..."
@@ -466,17 +302,4 @@ def analyze_recordings(config: Config) -> Path | None:
         f"{tag('analyze')} Saved {len(new_analyses)} new + {len(existing_analyses)} existing = {len(talk_analyses)} total analyses."
     )
 
-    # Synthesize across all talks (existing + new)
-    if talk_analyses:
-        console.print(
-            f"{tag('analyze')} Synthesizing insights across {len(talk_analyses)} talks..."
-        )
-        with console.status(f"{tag('analyze')} Synthesizing..."):
-            synthesis = synthesize_analyses(config, talk_analyses)
-        synthesis["individual_talks"] = talk_analyses
-    else:
-        synthesis = {"individual_talks": [], "narrative": "No talks analyzed."}
-
-    out_path.write_text(json.dumps(synthesis, indent=2, ensure_ascii=False))
-    console.print(f"{tag('analyze')} Recording analysis saved to {out_path}")
-    return out_path
+    return individual_path
