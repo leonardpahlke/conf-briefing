@@ -1,0 +1,584 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Appendix: Talk Summaries - Intelligence Briefing: KubeCon EU 2026</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex-ae828afd.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-32bf8879.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Intelligence Briefing: KubeCon EU 2026</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="appendix-selected-talk-summaries"><a class="header" href="#appendix-selected-talk-summaries">Appendix: Selected Talk Summaries</a></h1>
+<h2 id="optimizing-error-recovery-for-cost-efficient-distributed-ai-model-training-with-kubernetes---radostin-stoyanov-university-of-oxford--andrey-velichkevich-apple-viktória-spišáková-masaryk-university"><a class="header" href="#optimizing-error-recovery-for-cost-efficient-distributed-ai-model-training-with-kubernetes---radostin-stoyanov-university-of-oxford--andrey-velichkevich-apple-viktória-spišáková-masaryk-university">Optimizing Error Recovery for Cost-Efficient Distributed AI Model Training with Kubernetes - Radostin Stoyanov, University of Oxford &amp; Andrey Velichkevich, Apple; Viktória Spišáková, Masaryk University</a></h2>
+<p><em>Cluster: AI/ML and LLM Workloads</em>
+| Evidence: production | Perspective: academic</p>
+<p>This talk addresses the high cost of failures in distributed AI training workloads, particularly with large GPU clusters. The team presents infrastructure checkpointing as a solution, focusing on GPU state checkpointing in Kubernetes. They demonstrate optimizations like compression, deduplication, and incremental checkpointing to reduce storage and restore time. Real-world examples show 34 days of compute lost due to node failure, with studies reporting 460+ interruptions and $millions in costs. The solution integrates with CRI-O, CUDA APIs, and Kubeflow, enabling transparent recovery without user code changes.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>GPU checkpointing with CRI-O and CUDA APIs enables transparent recovery of distributed training jobs in Kubernetes, reducing compute loss from hardware failures.</li>
+<li>Compression and deduplication optimizations reduce checkpoint sizes by 10-90%, depending on workload (e.g., 90% for quantized models, 10-20% for full training).</li>
+<li>Incremental checkpointing via checksums and SoftDirtyBit mechanisms minimizes redundant data storage for CPU workloads, but GPU-specific solutions are still under development.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> CRI-O (container runtime with checkpointing extensions), CUDA APIs (for GPU state management), Kubeflow Trainer (for orchestrating distributed training jobs), Kubernetes (for gang scheduling and workload management)</p>
+<hr>
+<h2 id="redefining-slis-for-llm-inference-managing-hybrid-cloud-with-vllm--llm-d---christopher-nuland--hilliary-lipsig-red-hat"><a class="header" href="#redefining-slis-for-llm-inference-managing-hybrid-cloud-with-vllm--llm-d---christopher-nuland--hilliary-lipsig-red-hat">Redefining SLIs for LLM Inference: Managing Hybrid Cloud with vLLM &amp; LLM-D - Christopher Nuland &amp; Hilliary Lipsig, Red Hat</a></h2>
+<p><em>Cluster: AI/ML and LLM Workloads</em>
+| Evidence: proof_of_concept | Perspective: practitioner</p>
+<p>The talk addresses the challenges of adapting traditional SRE metrics (SLIs, SLOs, SLAs) to modern LLM-based AI stacks. Key innovations include cache-aware routing via LLMD, which improves time-to-first-token by 100-200% by leveraging KVCache hit rates, and decomposing LLMs into pre-fill/decode phases for resource optimization. The speakers emphasize end-to-end telemetry for stateful models and highlight the importance of metrics like batch efficiency and guardrail execution in agentic systems.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Redefine SLIs for LLMs by tracking metrics like KVCache hit rate and time-to-first-token, which are critical for performance optimization.</li>
+<li>Use LLMD for cache-aware routing to improve inference latency by up to 200% in fleets of models with overlapping prompts.</li>
+<li>Decompose LLMs into pre-fill (memory-intensive) and decode (compute-intensive) phases to reduce latency by 5-30% and optimize GPU resource allocation.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> vLLM: Optimized inference engine for LLMs., LLMD: Cache-aware routing system for model fleets., Ray: Orchestration framework for distributed AI workloads (demonstrated in a Game Boy reinforcement learning example).</p>
+<hr>
+<h2 id="virtualizing-large-scale-gpu-cluster-for-sovereign-ai-petasus-ai-cloud-journey-with-kubernetes---jian-li-sk-telecom"><a class="header" href="#virtualizing-large-scale-gpu-cluster-for-sovereign-ai-petasus-ai-cloud-journey-with-kubernetes---jian-li-sk-telecom">Virtualizing Large Scale GPU Cluster for Sovereign AI: Petasus AI Cloud Journey with Kubernetes - Jian Li, SK Telecom</a></h2>
+<p><em>Cluster: AI/ML and LLM Workloads</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>SK Telecom’s Jian Li presents Petasus AI Cloud, an in-house solution for virtualizing a 1,000+ NVIDIA Blackwell GPU cluster using Kubernetes and QEMU. The system addresses GPU resource fragmentation, environment provisioning delays, and multi-tenancy security risks while maintaining near-bare-metal performance (less than 1% overhead). Key optimizations include NVLink/GDR virtualization, PCI topology alignment, and automated partitioning via NVIDIA UFM. The solution supports heterogeneous workloads and integrates CNCF tools for observability.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Use Kubernetes with QEMU for secure, scalable GPU virtualization in sovereign AI infrastructure</li>
+<li>Optimize NVLink and GDR virtualization to achieve 70-700 GB/s bidirectional bandwidth (98% of bare metal performance)</li>
+<li>Implement automated GPU fabric partitioning via Kubernetes operators and NVIDIA UFM for multi-tenancy isolation</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Kubernetes (with CRD extensions for GPU orchestration), QEMU (optimized for AI workload virtualization), Petasus AI Cloud (SK Telecom’s in-house solution), NVIDIA UFM (for GPU fabric management), Prometheus/DCGM Exporter (observability stack)</p>
+<hr>
+<h2 id="from-logs-to-decisions-autonomous-ai-agents-for-real-time-kubernetes-threat-response---willem-berroubache-orange"><a class="header" href="#from-logs-to-decisions-autonomous-ai-agents-for-real-time-kubernetes-threat-response---willem-berroubache-orange">From Logs to Decisions: Autonomous AI Agents for Real-Time Kubernetes Threat Response - Willem Berroubache, Orange</a></h2>
+<p><em>Cluster: Security and Policy Enforcement</em>
+| Evidence: proof_of_concept | Perspective: practitioner</p>
+<p>The talk addresses the gap between expected Kubernetes security and real-world implementation, emphasizing runtime monitoring over static audits. Willem Berroubache from Orange presents a system using agentic AI to automate threat detection and remediation by correlating logs, metrics, and events from tools like Elastic, Prometheus, and Falco. A demo demonstrates detecting a crypto miner attack via command injection, applying Cilium network policies and Keyverno image policies, and maintaining human-in-the-loop validation for remediation decisions.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Agentic AI agents (coordinator, threat analyst, remediation, notify) enable real-time Kubernetes threat response by automating signal correlation and remediation while preserving human oversight.</li>
+<li>Runtime monitoring is critical for detecting live threats (e.g., crypto miners) that static audits miss, using tools like Falco and isolation forest ML models for anomaly detection.</li>
+<li>Human-in-the-loop validation ensures safe remediation (e.g., Cilium egress blocking, Keyverno image policies) while reducing operational noise from false positives.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Falco (runtime security monitoring), Elastic/Prometheus (observability stack), Cilium (network policy enforcement), Keyverno (Kubernetes policy engine), Isolation Forest (anomaly detection ML model)</p>
+<hr>
+<h2 id="evolving-policy-management-with-agentic-ai-kyverno-mcp-and-kagent-for-multi-cluster-governance---shuting-zhao-nirmata--dahu-kuang-alibaba-cloud"><a class="header" href="#evolving-policy-management-with-agentic-ai-kyverno-mcp-and-kagent-for-multi-cluster-governance---shuting-zhao-nirmata--dahu-kuang-alibaba-cloud">Evolving Policy Management with Agentic AI: Kyverno MCP and Kagent for Multi-Cluster Governance - Shuting Zhao, Nirmata &amp; Dahu Kuang, Alibaba Cloud</a></h2>
+<p><em>Cluster: Security and Policy Enforcement</em>
+| Evidence: proof_of_concept | Perspective: maintainer</p>
+<p>The talk introduces OpenCloud, an AI-native orchestration layer that automates multi-cluster Kubernetes policy management using Kyverno and Kagent. It addresses challenges like manual policy verification, verification gaps, and knowledge silos by enabling natural language-driven policy checks, automated remediation, and shared policy governance. A live demo shows OpenCloud managing Kyverno policies across two clusters, including policy installation, violation reporting, and mutating policy enforcement.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Use OpenCloud as an AI assistant to automate policy verification and remediation across clusters via natural language queries (e.g., ‘show me last 5 blocked requests’)</li>
+<li>Leverage Kyverno’s Common Expression Language (CEL) policies for validation, mutation, and reporting across clusters</li>
+<li>Deploy CloudHub to share policy governance ‘skills’ as reusable templates, reducing knowledge silos</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Kyverno (CNCF graduated policy engine with CEL-based policies), OpenCloud (AI-native orchestration layer for Kubernetes governance), CloudHub (shared policy governance ‘app store’ for reusable skills), Helm (for Kyverno installation fallback when CLI is unavailable)</p>
+<hr>
+<h2 id="sbm-making-sboms-play-together---jacopo-bufalino-cnam--agathe-blaise-thales-six-gts-france"><a class="header" href="#sbm-making-sboms-play-together---jacopo-bufalino-cnam--agathe-blaise-thales-six-gts-france">SB💣💣M: Making SBOMs Play Together - Jacopo Bufalino, CNAM &amp; Agathe Blaise, Thales SIX GTS France</a></h2>
+<p><em>Cluster: Security and Policy Enforcement</em>
+| Evidence: production | Perspective: academic</p>
+<p>This talk explores the challenges of SBOM (Software Bill of Materials) interoperability across tools, focusing on discrepancies in package reporting and vulnerability detection. The speakers analyzed 20 popular Docker Hub container images using open-source and commercial tools (e.g., Trivvy, Scout, Microsoft, Google Cloud) and found significant variation in reported packages (e.g., 123–1164 vulnerabilities) due to differences in binary/source package handling, package URL encoding, and CVE parsing. They demonstrated a custom tool to normalize SBOMs and proposed standardization as a solution to improve interoperability.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>SBOM tools produce inconsistent results due to differences in package identification and standard compliance (e.g., binary vs. source package duplication).</li>
+<li>Vulnerability detection varies widely: kernel CVEs in containers are often incorrectly flagged, and Alpine Linux tools miss unpatched vulnerabilities.</li>
+<li>A simple script can normalize SBOMs across tools, but vendors must adopt standardized formats like SPDX and ECMA-compliant package URLs.</li>
+<li>More vulnerabilities reported ≠ better tooling; focus on standardization and tool compatibility for accurate security assessments.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Trivvy, Sift, Scout (open-source SBOM tools), Microsoft, GCP, Amazon (commercial SBOM tools), VibeCoded UI (open-source tool to visualize SBOM/CVE discrepancies), Custom SBOM normalization script (open-sourced)</p>
+<hr>
+<h2 id="platform-engineering-20-just-enough-kubernetes-and-ai-native-devops---shweta-vohra-bookingcom"><a class="header" href="#platform-engineering-20-just-enough-kubernetes-and-ai-native-devops---shweta-vohra-bookingcom">Platform Engineering 2.0: Just-Enough Kubernetes and AI-Native DevOps - Shweta Vohra, Booking.com</a></h2>
+<p><em>Cluster: Platform Engineering and DevOps Practices</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>Shweta Vohra from Booking.com addresses the ambiguity in defining platform engineering, emphasizing that a true platform must provide stability, integration, and consistency rather than being a collection of tools. She contrasts Platform Engineering 1.0 (tool-heavy, Kubernetes-centric) with 2.0 (capability-focused, lean infrastructure), using Netflix and Linux as exemplars. The talk introduces the vArise model (Adaptable, Repeatable, Integratable, Self-sufficient, Ecosystem-enabling) and demonstrates how K3S, Ambient Mesh, and Gateway API reduce complexity while enabling AI-native DevOps workflows.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>A platform must enable ecosystems (e.g., Netflix for creators, Linux for developers) rather than being a toolset. Use the vArise model to validate platform maturity.</li>
+<li>Platform Engineering 2.0 prioritizes ‘just enough Kubernetes’ via K3S for disposable, lean clusters and Ambient Mesh to reduce operational overhead.</li>
+<li>Shift from exposing Kubernetes directly to developers to abstracting intent-based workflows (e.g., Gateway API for canary deployments).</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> K3S (lightweight Kubernetes distribution for disposable clusters), Ambient Mesh (alternative to traditional service meshes for reduced overhead), Gateway API (simplifies traffic management via intent-based configuration), Prometheus (observability for AI-driven anomaly detection in Platform 2.0)</p>
+<hr>
+<h2 id="from-jenkins-to-tekton-our-journey-toward-a-kubernetes-native-cicd-with-argocd---mustafa-barış-ege--özge-aygül-tübitak-bilgem"><a class="header" href="#from-jenkins-to-tekton-our-journey-toward-a-kubernetes-native-cicd-with-argocd---mustafa-barış-ege--özge-aygül-tübitak-bilgem">From Jenkins to Tekton: Our Journey Toward a Kubernetes-Native CI/CD with ArgoCD - Mustafa Barış Ege &amp; Özge Aygül, TÜBİTAK-BİLGEM</a></h2>
+<p><em>Cluster: Platform Engineering and DevOps Practices</em>
+| Evidence: proof_of_concept | Perspective: practitioner</p>
+<p>The speakers share their transition from Jenkins to Tekton and ArgoCD to achieve a Kubernetes-native CI/CD pipeline. They highlight challenges with Jenkins, such as scalability, plugin management, and consistency, and explain how Tekton’s unified pipeline architecture, event-driven execution, and Kubernetes-native integration addressed these issues. ArgoCD is used for GitOps-based deployments, with an image updater automating image tag synchronization. The talk emphasizes cultural shifts in DevOps practices and lessons learned during migration.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Adopt Tekton for Kubernetes-native CI pipelines to eliminate Jenkins’ scalability and plugin management issues.</li>
+<li>Use ArgoCD with GitOps to automate deployments and enforce Git as the single source of truth.</li>
+<li>Standardize CI/CD workflows with containerized tasks to enable universal adoption across teams, even for non-Kubernetes projects.</li>
+<li>Implement human approval gates in production deployments to balance automation with control.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Tekton (Kubernetes-native CI/CD pipelines), Argo CD (GitOps-based deployment automation), Kaneko (container task execution framework), CanecoBuild (image building tool), Argo CD Image Updater (automates image tag synchronization)</p>
+<hr>
+<h2 id="keynote-the-cloud-native-feedback-loop-karena-angell-katie-gamanji-chad-beaudin--ahmed-bebars"><a class="header" href="#keynote-the-cloud-native-feedback-loop-karena-angell-katie-gamanji-chad-beaudin--ahmed-bebars">Keynote: The Cloud Native Feedback Loop… Karena Angell, Katie Gamanji, Chad Beaudin &amp; Ahmed Bebars</a></h2>
+<p><em>Cluster: Platform Engineering and DevOps Practices</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>The talk emphasizes that Cloud Native is a collaborative movement driven by feedback loops between end users, the Technical Oversight Committee (TOC), the Technical Advisory Board (TAB), and project maintainers. Using a case study of Cycle.ai adopting the CNCF project Carbon Cutter, the speakers demonstrate how end-user challenges (e.g., high AI costs) are addressed through CNCF maturity levels (sandbox, incubated, graduated) and tools like LFX Insights. The feedback loop includes end-user contributions to project development, such as submitting reference architectures and participating in adopter interviews, to ensure sustainable project evolution.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Understand CNCF project maturity levels (sandbox, incubated, graduated) to assess risk and adoption readiness.</li>
+<li>Contribute to CNCF projects by submitting reference architectures to the TAB GitHub repository and participating in adopter interviews.</li>
+<li>Use LFX Insights to evaluate project health metrics like governance, contributor diversity, and security practices.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Carbon Cutter (CNCF project for reducing cloud-native resource consumption), LFX Insights (project health dashboard for CNCF projects), Reference architectures from the TAB (battle-tested deployment blueprints)</p>
+<hr>
+<h2 id="the-accidental-platform-team-kubernetes-operators-at-swisscom---fabian-schulz--jelena-malic-swisscom"><a class="header" href="#the-accidental-platform-team-kubernetes-operators-at-swisscom---fabian-schulz--jelena-malic-swisscom">The Accidental Platform Team: Kubernetes Operators at Swisscom - Fabian Schulz &amp; Jelena Malic, Swisscom</a></h2>
+<p><em>Cluster: Kubernetes Operators and Multi-Tenancy</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>Swisscom transitioned from manual 5G network automation to a Kubernetes operator-based platform, reducing deployment time from days to hours. By encapsulating cross-domain knowledge in operators, they simplified workflows for network engineers and achieved drift detection via reconciliation. The platform now automates IP management, router configuration, and testing, with observability tools like Grafana and Git-based traceability. Open-source contributions include a NetBox operator and schema-driven configuration tools.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Adopt a gradual, iterative approach to automation by starting with small, high-impact use cases (e.g., routers) and expanding based on feedback.</li>
+<li>Provide UIs (e.g., CRD wizards, Headlamp) to ease the transition for engineers unfamiliar with Kubernetes, while maintaining Git-based traceability for auditability.</li>
+<li>Prioritize observability and traceability (e.g., Grafana dashboards, Git commit history) to build trust in automated systems and enable rapid issue resolution.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Kubernetes Operators (custom-built for IP management, router config, and 5G core deployment), NetBox (IPAM for IP reservation and management), Metal-LB (load balancing for Kubernetes services), Headlamp (Kubernetes UI for observability), Schema-Driven Configuration (SDC) tool for declarative network config, Grafana (observability dashboards for metrics)</p>
+<hr>
+<h2 id="three-shades-of-isolation-a-multi-tenancy-fortress---braulio-dumba--paolo-dettori-ibm"><a class="header" href="#three-shades-of-isolation-a-multi-tenancy-fortress---braulio-dumba--paolo-dettori-ibm">Three Shades of Isolation: A Multi-tenancy Fortress - Braulio Dumba &amp; Paolo Dettori, IBM</a></h2>
+<p><em>Cluster: Kubernetes Operators and Multi-Tenancy</em>
+| Evidence: proof_of_concept | Perspective: academic</p>
+<p>The talk presents IBM’s approach to Kubernetes multi-tenancy using three isolation layers (control plane, data plane, and network) built with open-source technologies. The solution addresses security risks, performance degradation from noisy neighbors, and cluster-wide resource conflicts. Experiments show minimal overhead (single-digit millisecond latency) while providing full isolation. The architecture uses KubeFlex for control plane provisioning, KubeVert for VM-based data plane isolation, and OVN Kubernetes for network segmentation.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Use KubeFlex + KubeVert + OVN Kubernetes to achieve control plane, data plane, and network isolation in Kubernetes multi-tenancy</li>
+<li>Isolation is cost-effective with minimal latency overhead (single-digit milliseconds) and no need for dedicated physical infrastructure</li>
+<li>Cluster admins can enforce resource limits at the VM/data plane level rather than per-namespace/pod</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> KubeFlex (control plane as a service), KubeVert (VMs as Kubernetes pods), K3S (lightweight Kubernetes distribution), OVN Kubernetes (network isolation with user-defined networks)</p>
+<hr>
+<h2 id="the-fourth-pillar-arrives-opentelemetry-profiling-alpha-in-action---felix-geisendörfer-datadog--florian-lehner-elastic"><a class="header" href="#the-fourth-pillar-arrives-opentelemetry-profiling-alpha-in-action---felix-geisendörfer-datadog--florian-lehner-elastic">The Fourth Pillar Arrives: OpenTelemetry Profiling Alpha in Action - Felix Geisendörfer, Datadog &amp; Florian Lehner, Elastic</a></h2>
+<p><em>Cluster: Observability and Telemetry</em>
+| Evidence: proof_of_concept | Perspective: maintainer</p>
+<p>The talk announces OpenTelemetry Profiling’s alpha release, emphasizing its role in observability for performance, cost optimization, and incident analysis. The profiling format introduces features like dictionaries for 40% wire size reduction and correlation with traces. A live demo shows eBPF-based profiling capturing CPU usage across Python and Node.js applications, highlighting cross-language stack traces and low overhead (1% CPU). The speakers stress collaboration across companies and the importance of profiling for debugging resource-intensive issues.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Use OpenTelemetry Profiling Alpha to identify performance bottlenecks and optimize costs by analyzing CPU/memory usage with 40% smaller payloads via dictionary compression.</li>
+<li>Leverage eBPF-based profiling for low-overhead (1% CPU) system-wide visibility without application instrumentation, supporting languages like Python, Node.js, and Java.</li>
+<li>Correlate profiles with traces and metrics using LINK messages to debug issues like unexpected CPU spikes or memory leaks in production systems.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> OpenTelemetry Profiling (alpha), eBPF-based profiler (OpenTelemetry Collector integration), DevFiler (Elastic’s profiling visualization tool), OpenTelemetry Collector with profiling receiver</p>
+<hr>
+<h2 id="day-2-reality-check-taming-wasteful-telemetry---juraci-paixão-kröhling-ollygarden--elena-kovalenko-delivery-hero"><a class="header" href="#day-2-reality-check-taming-wasteful-telemetry---juraci-paixão-kröhling-ollygarden--elena-kovalenko-delivery-hero">Day-2 Reality Check: Taming Wasteful Telemetry - Juraci Paixão Kröhling, OllyGarden &amp; Elena Kovalenko, Delivery Hero</a></h2>
+<p><em>Cluster: Observability and Telemetry</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>This talk addresses the challenges of excessive and poorly governed telemetry data in observability systems. The speakers highlight how auto-instrumentation at ‘day zero’ and decentralized organizational governance lead to noisy, inconsistent, and sometimes sensitive data (e.g., PII leaks). They present concrete examples like ‘traces of doom’ (7-day-long traces) and propose solutions such as using OpenTelemetry Collector processors to mask PII, delete redundant data, and enforce schema consistency. The core message emphasizes proactive governance, tooling (e.g., Weaver, SDK wrappers), and shifting telemetry responsibility to application teams rather than relying on vendors.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Use OpenTelemetry Collector’s transform processor to mask PII and delete outdated vendor-specific telemetry keys.</li>
+<li>Enforce consistent telemetry schemas with tools like Weaver to validate metric/service naming conventions.</li>
+<li>Avoid auto-instrumentation for non-critical operations (e.g., health checks, Redis pings) to reduce noise.</li>
+<li>Implement agentic code review tools to automate telemetry quality checks during pull requests.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> OpenTelemetry Collector (transform processor, log sampling), Weaver (schema validation for telemetry), SDK wrappers for opinionated OpenTelemetry instrumentation, Agentic code review tools for automated telemetry governance</p>
+<hr>
+<h2 id="18-bluetooth-controllers-walk-into-a-bar-observability--runtime-configuration-with-cncf-tools---simon-schrottner-dynatrace--manuel-timelthaler-tractive"><a class="header" href="#18-bluetooth-controllers-walk-into-a-bar-observability--runtime-configuration-with-cncf-tools---simon-schrottner-dynatrace--manuel-timelthaler-tractive">18 Bluetooth Controllers Walk into a Bar: Observability &amp; Runtime Configuration with CNCF Tools - Simon Schrottner, Dynatrace &amp; Manuel Timelthaler, Tractive</a></h2>
+<p><em>Cluster: Observability and Telemetry</em>
+| Evidence: proof_of_concept | Perspective: practitioner</p>
+<p>The talk explores applying CNCF observability tools (OpenTelemetry, Prometheus, Grafana) to a real-time IoT game using PlayStation Move controllers and Raspberry Pi. The speakers refactored the game into a microservices architecture with gRPC, enabling auto-instrumentation and real-time metrics. They demonstrated that Raspberry Pi can handle local observability stacks, even at 32+ controllers and 60Hz data rates. Key challenges included Prometheus’ pull-based limitations and high-frequency data cardinality, which were mitigated using push metrics and Victoria Metrics. The project highlights CNCF tools’ adaptability to non-cloud-native environments.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>CNCF tools like OpenTelemetry and Prometheus can be adapted for high-frequency IoT/real-time systems with proper architecture (e.g., microservices + gRPC).</li>
+<li>Raspberry Pi’s computational power enables local observability stacks (logs, traces, metrics) for off-grid deployments.</li>
+<li>Prometheus’ pull-based model struggles with short-lived, high-frequency data; push metrics and Victoria Metrics offer better alternatives.</li>
+<li>Feature flagging (flagd) and runtime configuration improve real-time system resilience and testing capabilities.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> OpenTelemetry (auto-instrumentation, traces/spans), Prometheus (metrics collection, push gateway workaround), Victoria Metrics (high-frequency metrics alternative), Grafana (real-time dashboards), flagd (feature flag proxy), gRPC (microservices communication), Raspberry Pi (edge observability host)</p>
+<hr>
+<h2 id="harbor-project---the-maintainers-session---yan-wang-broadcom--vadim-bauer-8gears"><a class="header" href="#harbor-project---the-maintainers-session---yan-wang-broadcom--vadim-bauer-8gears">Harbor Project - The Maintainers Session - Yan Wang, Broadcom &amp; Vadim Bauer, 8gears</a></h2>
+<p><em>Cluster: Supply Chain Security and SBOM</em>
+| Evidence: production | Perspective: maintainer</p>
+<p>The talk covers updates to the Harbor container registry, focusing on the Harbor CLI, Harbor Satellite, and performance improvements. Key highlights include the CLI’s 100,030 downloads, active replication in Satellite for edge deployments, and garbage collection optimizations. The speakers also discuss AI module integration with Alibaba and community-driven development via the LFX Mentorship Program.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>The Harbor CLI now supports 95% of use cases and is optimized for CI/CD and agentic workflows, with 100,030 downloads celebrated as a milestone.</li>
+<li>Harbor Satellite enables stateless, zero-trust edge registries with active replication and proxy capabilities, with future air-gap support in development.</li>
+<li>Garbage collection performance was improved by eliminating tag file storage, reducing deletion overhead by 90% in some cases.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Harbor CLI (github.com/goharbor/Harbor-cli), Harbor Satellite with SPIFI/SPIR integration, CNCF Module Pack project for AI module standardization</p>
+<hr>
+<h2 id="making-topology-aware-scheduling-practical-for-ai-workloads-from-discovery-to-simulation-at-scale---weizhou-lan-daocloud"><a class="header" href="#making-topology-aware-scheduling-practical-for-ai-workloads-from-discovery-to-simulation-at-scale---weizhou-lan-daocloud">Making Topology-Aware Scheduling Practical for AI Workloads: From Discovery to Simulation at Scale - Weizhou Lan, Daocloud</a></h2>
+<p><em>Cluster: Kubernetes Scheduling and Resource Management</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>This talk addresses the challenges of topology-aware scheduling for AI workloads in large-scale clusters. The speaker emphasizes the need for hierarchical network topology modeling, dynamic health monitoring, and validation tools like Quark and NVIDIA AIR. Key strategies include path isolation, affinity optimization, and health-aware rescheduling to avoid network contention and ensure SLA compliance. The talk highlights limitations of manual node labeling and demonstrates solutions like NVIDIA Topograph for automated topology discovery.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Use hierarchical topology views (node → superpod → rack → spine) to optimize communication paths for AI workloads like MOE models and PD disaggregation.</li>
+<li>Replace manual node affinity with automated tools like NVIDIA Topograph to avoid topology drift and reduce operational overhead.</li>
+<li>Leverage simulation tools like Quark and NVIDIA AIR for cost-effective validation of topology-aware scheduling strategies at scale.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> NVIDIA Topograph (automated topology discovery and health monitoring), Quark (Kubernetes simulation for topology validation), NVIDIA AIR (SaaS for simulating data center network infrastructure), Volcano and CHI Scheduler (topology-aware Kubernetes schedulers), K-Scheduler (NVIDIA’s topology-aware scheduler with subgroup constraints)</p>
+<hr>
+<h2 id="how-many-spark-applications-can-your-etcd-really-handle---joão-soares--joão-azevedo-feedzai"><a class="header" href="#how-many-spark-applications-can-your-etcd-really-handle---joão-soares--joão-azevedo-feedzai">How Many Spark Applications Can Your Etcd Really Handle? - João Soares &amp; João Azevedo, Feedzai</a></h2>
+<p><em>Cluster: Kubernetes Scheduling and Resource Management</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>Feedzai’s engineers João Azevedo and João Soares discuss their transition from YARN to Kubernetes for managing 4,000 daily Spark applications (3 per minute) across 150+ clusters. They highlight challenges with etcd storage bloat caused by Kubernetes object proliferation (15 objects per Spark job), leading to 5x storage growth in benchmarks. They demonstrate mitigations using Kubernetes’ aggregation layer to offload Spark operator data from etcd, reducing physical storage usage by 45% while handling 30% more workloads.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>CRDs and frequent status updates cause etcd bloat: Large objects (&gt;10KB) multiplied by MVCC revisions and churn create storage issues</li>
+<li>Use Kubernetes aggregation layer for heavy workloads: Offloading Spark operator data to an in-memory store reduced etcd usage by 45%</li>
+<li>Design for deletion: Implement TTL controllers or finalizers with timeouts to manage historical data retention</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Kubernetes (with Volcano scheduler for gang scheduling and hierarchical queues), Kubeflow Spark Operator (modified to use separate submission jobs), Kubernetes Aggregation Layer (custom API server for Spark operator data offloading), FluentD (for event timeline export to object storage)</p>
+<hr>
+<h2 id="wg-batch-updates-whats-new-and-what-is-next---yuki-iwai-cyberagent-inc--kevin-hannon-red-hat"><a class="header" href="#wg-batch-updates-whats-new-and-what-is-next---yuki-iwai-cyberagent-inc--kevin-hannon-red-hat">WG-Batch Updates: What’s New and What Is Next? - Yuki Iwai, CyberAgent, Inc. &amp; Kevin Hannon, Red Hat</a></h2>
+<p><em>Cluster: Kubernetes Scheduling and Resource Management</em>
+| Evidence: production | Perspective: maintainer</p>
+<p>The Kubernetes Working Group Batch (WG-Batch) presented updates on enhancing batch workload support in Kubernetes, focusing on HPC, AI/ML, and data analytics. Key features include Pod Replacement Policy GA, mutable resources for suspended jobs, and Workload-Aware Scheduling (WAS) for gang scheduling. The talk also highlighted Kube, a secondary scheduler for AI workflows, and JobSet advancements for distributed workloads. Future plans include multi-cluster preemption and extended resource support.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Pod Replacement Policy (GA in Kubernetes 1.34) allows fine-grained control over job pod replacement strategies (e.g., ‘failed’ vs. ‘terminating or failed’) to optimize resource usage.</li>
+<li>Mutable resources for suspended jobs enable dynamic updates to pod specs and scheduling directives without manual API calls, improving job resumption efficiency.</li>
+<li>Workload-Aware Scheduling (WAS) introduces PodGroup and Workload APIs to standardize gang scheduling, addressing challenges in distributed AI/ML workloads with complex dependencies.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Kubernetes: A secondary scheduler for AI workflows with topology-aware scheduling and multi-cluster dispatching., JobSet: A Kubernetes API for replicated batch jobs with execution ordering, volume claims, and in-place restarts., Workload-Aware Scheduling (WAS): Core Kubernetes APIs (PodGroup, Workload) for gang scheduling and resource sharing.</p>
+<hr>
+<h2 id="is-the-agent-in-the-room-with-us-right-now---nick-rutigliano--andrew-halaney-netflix"><a class="header" href="#is-the-agent-in-the-room-with-us-right-now---nick-rutigliano--andrew-halaney-netflix">Is the Agent in the Room with Us Right Now? - Nick Rutigliano &amp; Andrew Halaney, Netflix</a></h2>
+<p><em>Cluster: eBPF and Kernel-Level Solutions</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>Netflix’s Compute Runtime team discusses their custom Kubernetes-based container platform (Titus) and strategies for multi-tenant isolation. They address challenges like iNotify resource leaks in user namespaces, custom network isolation via IpMan, and performance optimizations in containerd. Key solutions include containerd patches for user namespace ownership, trunk-branch ENI networking with per-pod security groups, and volatile overlayFS for efficient image handling. The talk emphasizes production-scale isolation techniques and lessons from real-world incidents.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Use containerd patches to enforce user namespace ownership for iNotify and other resource limits, preventing cross-pod interference (e.g., 50,000 iNotify watches per pod).</li>
+<li>Implement custom CNI (IpMan) with trunk-branch ENI architecture to enable per-pod security groups, VLAN tagging, and bandwidth QoS via eBPF/TC.</li>
+<li>Optimize containerd snapshotter performance with volatile overlayFS and bind mounts with ID maps to avoid chown overhead in user namespaces.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Titus (Netflix’s Kubernetes-based container platform), IpMan (custom CNI for network isolation), containerd (with custom patches for user namespace ownership), NRI (Node Resource Interface for OCI runtime hooks), overlayFS (optimized with volatile mounts and bind maps)</p>
+<hr>
+<h2 id="how-statistical-offices-move-to-cloud-native-technology---frédéric-comte-insee--trygve-tatsuya-falch"><a class="header" href="#how-statistical-offices-move-to-cloud-native-technology---frédéric-comte-insee--trygve-tatsuya-falch">How Statistical Offices Move to Cloud Native Technology - Frédéric Comte, Insee &amp; Trygve Tatsuya Falch</a></h2>
+<p><em>Cluster: eBPF and Kernel-Level Solutions</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>National Statistical Offices (NSOs) like Insee and Statistics Norway are adopting cloud-native technologies to balance data security with innovation. They address institutional bottlenecks caused by slow, centralized IT processes through self-service platforms like Onyxia and NICE. By leveraging Kubernetes, containers, and open-source tools, they enable data scientists to work with real data securely while reducing friction between development and production. The talk emphasizes collaboration with public agencies and open-source communities to avoid reinventing infrastructure.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Adopt self-service platforms (e.g., Onyxia) to reduce bureaucratic delays and enable rapid experimentation with real data.</li>
+<li>Leverage existing open-source projects (e.g., NICE) instead of building custom infrastructure to avoid creating new legacy systems.</li>
+<li>Design user-centric data science platforms that prioritize transparency, reversibility, and integration with standard tools (e.g., Jupyter, RStudio).</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Onyxia (open-source data lab platform for Kubernetes), NICE (NAV’s Application Infrastructure Service, open-source developer platform), Kubernetes for container orchestration, S3 object storage for scalable data access, Vault for secret management, Iceberg for modern data warehousing, DuckDB/Spark/Trino for analytics workloads</p>
+<hr>
+<h2 id="beyond-the-cloud-managing-baremetal-the-kubernetes-way-using-metal3io-sylva-project-as-a-use-case---ádám-rozmán-ericsson-software-technology-nicolas-belouin-suse"><a class="header" href="#beyond-the-cloud-managing-baremetal-the-kubernetes-way-using-metal3io-sylva-project-as-a-use-case---ádám-rozmán-ericsson-software-technology-nicolas-belouin-suse">Beyond the Cloud: Managing Baremetal the Kubernetes Way Using Metal3.io: Sylva Project as a Use-case - Ádám Rozmán, Ericsson Software Technology; Nicolas Belouin, SUSE</a></h2>
+<p><em>Cluster: Edge and IoT Computing</em>
+| Evidence: production | Perspective: maintainer</p>
+<p>The talk introduces Metal3.io (referred to as MetalCube) as a Kubernetes-native solution for managing bare metal infrastructure, including lifecycle management, provisioning, and multi-cluster orchestration. It highlights the Sylva project, a telco/edge computing initiative, as a use case demonstrating Metal3.io’s integration with Cluster API, IP address management, and BMC protocols like Redfish. The speakers emphasize modularity, extensibility, and real-world deployment scenarios, such as handling complex network environments and firmware updates.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Metal3.io provides a modular, Kubernetes-native framework for bare metal management, enabling automated provisioning, firmware updates, and multi-cluster orchestration via Cluster API.</li>
+<li>The Sylva project demonstrates Metal3.io’s practical application in telco/edge environments, using Redfish with virtual media to avoid L2 network dependencies and simplify BMC communication.</li>
+<li>IP address management in Metal3.io uses Kubernetes-native leasing logic and pools, critical for environments without DHCP or with strict security rules.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Metal3.io (MetalCube): Bare metal lifecycle management tool with Cluster API integration., Ironic: Standalone BMC provisioning tool adapted from OpenStack, packaged as a Kubernetes operator., Cluster API: Kubernetes API for declarative cluster management., Project Sylva: Telco/edge computing framework using Metal3.io for bare metal deployments.</p>
+<hr>
+<h2 id="how-telemetry-data-moves-lessons-from-building-a-high-performance-open-source-agent---eduardo-silva-chronosphere--a-palo-alto-networks-company"><a class="header" href="#how-telemetry-data-moves-lessons-from-building-a-high-performance-open-source-agent---eduardo-silva-chronosphere--a-palo-alto-networks-company">How Telemetry Data Moves: Lessons From Building a High-Performance Open Source Agent - Eduardo Silva, Chronosphere | A Palo Alto Networks Company</a></h2>
+<p><em>Cluster: Edge and IoT Computing</em>
+| Evidence: production | Perspective: maintainer</p>
+<p>Eduardo Silva discusses the architecture and design principles of telemetry data pipelines, emphasizing performance, resource efficiency, and scalability. He explains how data moves between kernel and user space, the importance of buffering and batching to reduce system call overhead, and the use of efficient data formats like MessagePack. The talk highlights lessons from building FluentBit, including asynchronous I/O with event loops and coroutines, and compares historical approaches (e.g., Apache vs. Nginx) to modern data pipeline design.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Use MessagePack for efficient binary serialization to reduce data size and processing overhead (e.g., 18 bytes vs. 27 bytes for JSON).</li>
+<li>Batch and buffer data to minimize system call frequency and CPU contention, improving throughput.</li>
+<li>Leverage event loops and coroutines for asynchronous I/O to handle retries and network delays without blocking threads.</li>
+<li>Design multi-threaded architectures to isolate processing tasks (e.g., filtering, scheduling) and avoid contention in high-volume data pipelines.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> FluentBit (open-source telemetry agent), FluentD (data processing framework), MessagePack (binary serialization format), Apache HTTP Server (historical process-per-connection model), Nginx (event-loop-based asynchronous I/O model)</p>
+<hr>
+<h2 id="keynote-from-orbit-to-the-grid-automating-a-green-faseela-k-chris-holmes--michael-reichenbach"><a class="header" href="#keynote-from-orbit-to-the-grid-automating-a-green-faseela-k-chris-holmes--michael-reichenbach">Keynote: From Orbit to the Grid: Automating a Green… Faseela K, Chris Holmes &amp; Michael Reichenbach</a></h2>
+<p><em>Cluster: Cloud-Native Sustainability and Green Computing</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>This keynote explores cloud-native sustainability across three layers: sustainability of the cloud (infrastructure efficiency), in the cloud (operational practices), and through the cloud (environmental impact). Planet Labs uses Kubernetes and CNCF tools to process 7 petabytes of satellite data annually for deforestation monitoring and methane detection. 1,5’s virtual power plant (Heartbeat AI) leverages cloud-native orchestration to manage 50,000 distributed energy systems, saving 2 million tons of CO2. The CNCF sustainability ecosystem emphasizes measuring carbon impact, optimizing resource utilization, and closing feedback loops for operational efficiency.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Cloud-native systems must prioritize resource efficiency, renewable energy integration, and environmental problem-solving (e.g., Planet Labs’ 30TB/day processing for real-time insights).</li>
+<li>Virtual power plants (e.g., 1,5’s Heartbeat AI) demonstrate how Kubernetes and OpenTelemetry can orchestrate 4.8 million daily optimization decisions across 50,000+ distributed energy systems.</li>
+<li>CNCF’s ‘measure-observe-decide-act-close loop’ framework operationalizes sustainability by making energy/carbon metrics as visible as cost and latency.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Kubernetes (Planet Labs, 1,5), Prometheus/Grafana (observability for both Planet Labs and 1,5), OpenTelemetry (1,5’s distributed energy system monitoring), Argo/Keta (Planet Labs’ event-driven workflow orchestration), Backstage (developer platform for Planet Labs and 1,5), Falco (security for 1,5’s decentralized systems), CNCF TAG Operational Resilience (guidelines for green ops)</p>
+<hr>
+<h2 id="collisions-in-the-dark-illuminating-the-95-of-kubeflow-you-cant-see---amine-lahouel--laura-llinares-cern"><a class="header" href="#collisions-in-the-dark-illuminating-the-95-of-kubeflow-you-cant-see---amine-lahouel--laura-llinares-cern">Collisions in the Dark: Illuminating the 95% of Kubeflow You Can’t See - Amine Lahouel &amp; Laura Llinares, CERN</a></h2>
+<p><em>Cluster: Cloud-Native Sustainability and Green Computing</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>CERN’s team discusses their observability stack for a Kubeflow-based scientific computing platform, addressing user needs for GPU performance, energy consumption, and sustainability metrics. They extended Kubernetes default monitoring with Prometheus, Grafana, IPMI, and Kepler to track hardware-level metrics like CPU frequency, GPU utilization, and CO2 emissions. Challenges included handling 2.3 million time series in Prometheus and hardware compatibility issues with new AMD CPUs. The solution enabled users to diagnose performance issues (e.g., CPU frequency fluctuations) and optimize resource usage.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Extend Kubernetes observability with hardware-specific exporters (NVIDIA/AMD, IPMI, Kepler) to monitor GPU, CPU, and energy metrics.</li>
+<li>Use Prometheus and Grafana to create user-facing dashboards for workload analytics, cluster health, and sustainability metrics (e.g., CO2 emissions).</li>
+<li>Prioritize idle resource monitoring to reduce waste and align with sustainability goals by alerting users to terminate unused sessions.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Prometheus (with KubePrometheus stack), Grafana (for dashboards), IPMI (node-level power monitoring), Kepler (container/pod-level energy attribution), NVIDIA/AMD GPU exporters, Kubeflow (ML platform)</p>
+<hr>
+<h2 id="envoy-in-the-era-of-agentic-workloads---yan-avlasov-google--erica-hughberg-tetrate"><a class="header" href="#envoy-in-the-era-of-agentic-workloads---yan-avlasov-google--erica-hughberg-tetrate">Envoy in the Era of Agentic Workloads - Yan Avlasov, Google &amp; Erica Hughberg, Tetrate</a></h2>
+<p><em>Cluster: Networking and Service Meshes</em>
+| Evidence: production | Perspective: maintainer</p>
+<p>The talk discusses how Envoy is being adapted to handle agentic workloads, such as AI agents and inference traffic, which differ from traditional API-based traffic. Key challenges include managing stateful protocols (e.g., MCP), evolving standards (e.g., A2A), and enforcing security/authorization policies for autonomous agents. The speakers highlight Envoy’s extensibility via dynamic modules, its production readiness in AI infrastructure (e.g., Google’s internal use), and the importance of community collaboration to address rapid protocol changes. They emphasize that 95% of critical agentic use cases are already supported by Envoy, with ongoing work to improve guardrails and observability.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Envoy’s existing infrastructure (e.g., HTTP handling, security, load balancing) provides a strong foundation for agentic workloads, but requires new features like dynamic modules and protocol-specific extensions.</li>
+<li>Dynamic modules enable in-process extensibility without forking Envoy, supporting languages like Go and Rust to lower contribution barriers.</li>
+<li>Security and authorization for agents require dual identity management (user + agent workload) and integration with systems like OpenFGA for fine-grained access control.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Envoy AI Gateway (Kubernetes-native control plane for AI traffic management), Dynamic modules in Envoy (for in-process filter extensions), OpenFGA (fine-grained access control integration via Envoy extension), MCP (Model Communication Protocol) and A2A (Agent-to-Agent) standards</p>
+<hr>
+<h2 id="k8s-sigs-nfd--sylva-declarative-image-to-node-compatibility-for-telco-clouds---eduardo-arango-gutierrez-nvidia--chaoyi-huang-huawei-technology-co-ltd"><a class="header" href="#k8s-sigs-nfd--sylva-declarative-image-to-node-compatibility-for-telco-clouds---eduardo-arango-gutierrez-nvidia--chaoyi-huang-huawei-technology-co-ltd">K8s-sigs NFD × SYLVA: Declarative Image-to-Node Compatibility for Telco Clouds. - Eduardo Arango Gutierrez, NVIDIA &amp; Chaoyi Huang, Huawei Technology Co., Ltd</a></h2>
+<p><em>Cluster: Networking and Service Meshes</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>This talk addresses the challenge of container portability in heterogeneous environments like telecom and HPC, where diverse hardware (e.g., 5G antennas, academic clusters) causes compatibility issues. The solution integrates NFD (Node Feature Discovery) with SYLVA to embed node-specific metadata into container images via ORAS artifacts. This enables declarative scheduling of containers to compatible nodes, ensuring SLA compliance and reducing deployment risks. The project includes tools like node feature groups for inventory management and a Kubernetes scheduler plugin to enforce compatibility rules.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Use NFD to capture node features (CPU, PCI, kernel flags) and embed them into container images as ORAS artifacts for compatibility validation.</li>
+<li>Leverage node feature groups (CRDs) to categorize clusters into hardware-specific inventories for fine-grained scheduling.</li>
+<li>Deploy a Kubernetes scheduler plugin that uses NFD metadata to reject incompatible node allocations, preventing runtime failures.</li>
+<li>Collaborate with SYLVA to standardize telecom-grade validation workflows, ensuring 99.999% SLA compliance for critical applications.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> NFD (Node Feature Discovery): Captures hardware/software metadata for scheduling., ORAS (OCI Registry as Storage): Stores container artifacts with compatibility metadata., SYLVA (Linux Foundation): Telecom-focused validation framework for CNFs (Cloud-Native Network Functions)., Kubernetes Scheduler Plugin: Enforces image-to-node compatibility using NFD metadata.</p>
+<hr>
+<h2 id="cloud-native-theater--envoycon-the-end-of-a-de-erica-h-kateryna-n-yan-a-rohit-a--leonardo-m"><a class="header" href="#cloud-native-theater--envoycon-the-end-of-a-de-erica-h-kateryna-n-yan-a-rohit-a--leonardo-m">Cloud Native Theater | EnvoyCon: The End of a De… Erica H, Kateryna N, Yan A, Rohit A &amp; Leonardo M</a></h2>
+<p><em>Cluster: Networking and Service Meshes</em>
+| Evidence: production | Perspective: practitioner</p>
+<p>The talk explores the evolution of Envoy from a proxy to a foundational platform in cloud-native infrastructure. Panelists share personal journeys contributing to Envoy, emphasizing its extensibility and community growth. Key advancements include dynamic modules (enabling Rust/Go contributions without C++ expertise) and AI/LLM traffic integration. Challenges like fragmented network architectures and protocol complexity are discussed, alongside future opportunities in load balancing and observability.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Envoy’s shift from a proxy to a platform enables diverse use cases beyond HTTP, including PubSub and AI traffic.</li>
+<li>Dynamic modules reduce the barrier to contribution by allowing extensions in Rust/Go, replacing the prior C++ requirement.</li>
+<li>Community collaboration across companies (e.g., Spotify, Databricks) drives innovation, with 50+ maintainers now involved.</li>
+<li>Load balancing improvements (e.g., Codel, AdaptiveLifo) address latency-sensitive workloads, a ‘hidden gem’ for API platforms.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Envoy (core project), Dynamic modules (Rust/Go-based extensions), Envoy Gateway (ingress control), Cilium (service mesh integration), OpenTelemetry (observability integration)</p>
+<hr>
+<h2 id="merge-forward-branching-inclusion-merging-belo-jay-j-jay-t-bhavani-i-catherine-p--michiel-p"><a class="header" href="#merge-forward-branching-inclusion-merging-belo-jay-j-jay-t-bhavani-i-catherine-p--michiel-p">Merge Forward: Branching Inclusion, Merging Belo… Jay J, Jay T, Bhavani I, Catherine P &amp; Michiel P</a></h2>
+<p><em>Cluster: Ecosystem and Community Management</em>
+| Evidence: theoretical | Perspective: practitioner</p>
+<p>Merge Forward is a CNCF initiative focused on building supportive networks for underrepresented groups in open source, including LGBTQ+, women, deaf/hard of hearing, and Black/Indigenous/POC communities. The panel highlights the existential threat to open source projects due to a lack of maintainers and contributors, citing Nginx as an example. Key strategies include creating accessible environments, fostering allyship, and embedding inclusion as a core requirement rather than an afterthought. The initiative emphasizes community-driven efforts over performative diversity initiatives.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Create inclusive environments by treating accessibility (e.g., captions, sign language) as essential infrastructure, not optional features.</li>
+<li>Move from ‘checkbox inclusion’ to structural inclusion by involving underrepresented groups in decision-making and co-designing solutions.</li>
+<li>Allyship requires active engagement, not surface-level support—ask marginalized individuals directly about their needs and avoid assumptions.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Merge Forward (CNCF initiative with working groups like Deaf and Hard of Hearing, Friends of Dorothy, Women in Cloud Native)., Best practices documentation for conference accessibility (e.g., captions, sign language interpretation).</p>
+<hr>
+<h2 id="sig-docs-and-you-the-new-chapter-of-the-kubernetes-api-reference-generator---kat-cosgrove-minimus-lavish-pal-independent-rey-lejano-red-hat"><a class="header" href="#sig-docs-and-you-the-new-chapter-of-the-kubernetes-api-reference-generator---kat-cosgrove-minimus-lavish-pal-independent-rey-lejano-red-hat">SIG Docs and You: The New Chapter of the Kubernetes API Reference Generator - Kat Cosgrove, Minimus; Lavish Pal, Independent; Rey Lejano, Red Hat</a></h2>
+<p><em>Cluster: Ecosystem and Community Management</em>
+| Evidence: production | Perspective: maintainer</p>
+<p>The talk addresses challenges with the Kubernetes API reference generator, including frequent failures, lack of error messages, and complex dependencies. Lavish Pal’s contributions during their LFX mentorship improved the generator by fixing missing navigation files, adding error handling, and simplifying setup. The goal is to make the generator more accessible for new contributors and reduce manual maintenance. Future work includes containerizing the tool and exploring alternatives to reduce complexity.</p>
+<p><strong>Key Takeaways:</strong></p>
+<ul>
+<li>Lavish Pal fixed the missing <code>navdata.js</code> file by serializing navigation data into JSON, improving API doc navigation.</li>
+<li>Error handling was added to the <code>writer.go</code> file to provide clear failure messages instead of silent errors.</li>
+<li>The setup process was simplified by removing reliance on GOPATH and allowing flexible Kubernetes repo paths.</li>
+<li>Future goals include containerizing the generator and automating version configuration to reduce manual work.</li>
+</ul>
+<p><strong>Tools &amp; Projects:</strong> Kubernetes API Reference Generator (custom toolchain combining Bash, Python, and Go), OpenAPI schema (input for generating API docs), Elastic Kubernetes Reference (alternative tool for operator maintainers using Go templates)</p>
+<hr>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="14-prioritized-recommendations.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="14-prioritized-recommendations.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>
