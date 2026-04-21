@@ -1,6 +1,7 @@
 """Phase 2: Per-section LLM drafting with parallel execution."""
 
 import json
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from conf_briefing.analyze.llm import query_llm_json
@@ -9,13 +10,368 @@ from conf_briefing.console import console, progress_bar, tag
 from conf_briefing.io import load_json_file
 from conf_briefing.report.schemas import SectionDraft
 
+# --- Post-processing: reconcile fabricated titles to real ones ---
+
+
+def _tokenize(text: str) -> set[str]:
+    """Extract lowercase word tokens, dropping short words."""
+    return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 2}
+
+
+def _best_match(candidate: str, real_titles: set[str]) -> str | None:
+    """Find the real talk title with the highest word overlap to candidate.
+
+    Returns the real title if overlap is above threshold, else None.
+    """
+    candidate_tokens = _tokenize(candidate)
+    if len(candidate_tokens) < 2:
+        return None
+
+    best_title = None
+    best_score = 0.0
+
+    for real in real_titles:
+        real_tokens = _tokenize(real)
+        if not real_tokens:
+            continue
+        overlap = len(candidate_tokens & real_tokens)
+        # Jaccard-like score weighted toward the candidate (shorter string)
+        score = overlap / max(len(candidate_tokens), 1)
+        if score > best_score:
+            best_score = score
+            best_title = real
+
+    # Require >= 50% of the candidate's words to appear in the real title
+    if best_score >= 0.5 and best_title:
+        return best_title
+    return None
+
+
+def _reconcile_citations(
+    citations: list[dict], real_titles: set[str],
+) -> tuple[list[dict], int, int]:
+    """Reconcile citation talk_titles to real titles via fuzzy matching.
+
+    Returns (reconciled_citations, matched_count, rejected_count).
+    """
+    reconciled = []
+    matched = 0
+    rejected = 0
+
+    for c in citations:
+        cited = c.get("talk_title", "")
+        if cited in real_titles:
+            reconciled.append(c)
+            matched += 1
+            continue
+
+        real = _best_match(cited, real_titles)
+        if real:
+            c["talk_title"] = real
+            reconciled.append(c)
+            matched += 1
+        else:
+            rejected += 1
+
+    return reconciled, matched, rejected
+
+
+def _best_match_strict(candidate: str, real_titles: set[str]) -> str | None:
+    """Stricter matching for prose: requires more overlap to avoid false positives.
+
+    Used for prose reconciliation where bold/italic text could be topic labels,
+    not just talk references.
+    """
+    candidate_tokens = _tokenize(candidate)
+    if len(candidate_tokens) < 4:
+        return None
+
+    best_title = None
+    best_score = 0.0
+    best_overlap = 0
+
+    for real in real_titles:
+        real_tokens = _tokenize(real)
+        if not real_tokens:
+            continue
+        overlap = len(candidate_tokens & real_tokens)
+        score = overlap / max(len(candidate_tokens), 1)
+        if score > best_score:
+            best_score = score
+            best_title = real
+            best_overlap = overlap
+
+    # Require >= 50% token overlap AND at least 3 shared words
+    if best_score >= 0.5 and best_overlap >= 3 and best_title:
+        return best_title
+    return None
+
+
+def _reconcile_prose_titles(prose: str, real_titles: set[str]) -> tuple[str, int]:
+    """Replace paraphrased talk titles in prose with real ones.
+
+    Finds bold (**title**) and italic (*title*) references that look like
+    talk titles, fuzzy-matches them, and substitutes the real title.
+    Uses strict matching to avoid replacing topic labels with talk titles.
+    Returns (fixed_prose, substitution_count).
+    """
+    subs = 0
+
+    def _replace_match(m: re.Match) -> str:
+        nonlocal subs
+        delim = m.group(1)  # ** or *
+        candidate = m.group(2)
+
+        # Skip short strings — likely topic labels, not talk references
+        if len(candidate) < 30:
+            return m.group(0)
+
+        # Already a real title?
+        if candidate in real_titles:
+            return m.group(0)
+
+        real = _best_match_strict(candidate, real_titles)
+        if real:
+            subs += 1
+            return f"{delim}{real}{delim}"
+        return m.group(0)
+
+    # Match **bold** references (non-greedy, 30+ chars)
+    prose = re.sub(r"(\*\*)((?:[^*]|\*(?!\*)){30,}?)\1", _replace_match, prose)
+    # Match *italic* references (non-greedy, 30+ chars, not inside bold)
+    prose = re.sub(r"(?<!\*)(\*)((?:[^*]){30,}?)\1(?!\*)", _replace_match, prose)
+
+    # Match *"quoted italic"* references (landscape section uses this style)
+    def _replace_quoted(m: re.Match) -> str:
+        nonlocal subs
+        candidate = m.group(1)
+        if len(candidate) < 20 or candidate in real_titles:
+            return m.group(0)
+        real = _best_match_strict(candidate, real_titles)
+        if real:
+            subs += 1
+            return f'*"{real}"*'
+        return m.group(0)
+
+    prose = re.sub(
+        r'\*["\u201c]([^""\u201d]{20,}?)["\u201d]\*',
+        _replace_quoted,
+        prose,
+    )
+
+    return prose, subs
+
+
+# --- Post-processing: scrub fabricated metrics and speakers ---
+
+
+def _build_source_metrics(data: dict) -> set[str]:
+    """Collect all percentages present in pipeline source data."""
+    source_pcts: set[str] = set()
+    # Per-talk fields
+    for talk in data.get("talks", []):
+        for field in ("summary", "key_takeaways", "problems_discussed"):
+            val = talk.get(field, "")
+            if isinstance(val, list):
+                val = " ".join(str(v) for v in val)
+            source_pcts.update(re.findall(r"\d+(?:\.\d+)?%", str(val)))
+    # Cluster synthesis narratives
+    for cluster in data.get("clusters", []):
+        for field in ("narrative", "common_problems"):
+            val = cluster.get(field, "")
+            if isinstance(val, list):
+                val = " ".join(str(v) for v in val)
+            source_pcts.update(re.findall(r"\d+(?:\.\d+)?%", str(val)))
+    # Global synthesis
+    recordings = data.get("recordings", {})
+    for field in ("narrative",):
+        val = recordings.get(field, "")
+        source_pcts.update(re.findall(r"\d+(?:\.\d+)?%", str(val)))
+    return source_pcts
+
+
+def _scrub_ungrounded_metrics(
+    prose: str, source_metrics: set[str],
+) -> tuple[str, int]:
+    """Replace fabricated percentages and numbers with qualitative language.
+
+    Handles both percentages (N%) and specific numeric claims (N hours, Nms, etc.).
+    Returns (scrubbed_prose, replacement_count).
+    """
+    scrubbed = 0
+
+    # --- Pass 1: Percentages ---
+    # Patterns ordered most-specific first to prevent partial matches.
+    pct_patterns = [
+        # "only N% of" → "only a small fraction of"
+        (r"only\s+\d+(?:\.\d+)?%\s+of\s+", lambda m, _: "only a small fraction of "),
+        # "only N%" → "only a small share"
+        (r"only\s+\d+(?:\.\d+)?%", lambda m, _: "only a small share"),
+        # "by N%" → "significantly"
+        (r"by\s+\d+(?:\.\d+)?%", lambda m, _: "significantly"),
+        # "achieved N%" → "achieved high"
+        (r"achieved\s+\d+(?:\.\d+)?%", lambda m, _: "achieved high"),
+        # "N% of X" → "many X" (drop the "of")
+        (r"\d+(?:\.\d+)?%\s+of\s+", lambda m, _: "many "),
+        # "N% reduction/decrease/savings" → "significant reduction/..."
+        (
+            r"\d+(?:\.\d+)?%\s+(reduction|decrease|savings?)",
+            lambda m, _: f"significant {m.group(1)}",
+        ),
+        # "N% faster/increase/improvement" → "notable faster/..."
+        (
+            r"\d+(?:\.\d+)?%\s+(faster|increase|improvement|more)",
+            lambda m, _: f"notable {m.group(1)}",
+        ),
+        # "(N% in" → "(a significant proportion in"
+        (r"\(\d+(?:\.\d+)?%\s+in\s+", lambda m, _: "(a significant proportion in "),
+        # "N% in" → "a significant proportion in"
+        (r"\d+(?:\.\d+)?%\s+in\s+", lambda m, _: "a significant proportion in "),
+        # Fallback: bare "N%" → "significantly"
+        (r"\d+(?:\.\d+)?%", lambda m, _: "significantly"),
+    ]
+
+    for pattern, replacement in pct_patterns:
+        def _do_replace(m: re.Match, _pat=pattern, _rep=replacement) -> str:
+            nonlocal scrubbed
+            # Extract just the percentage from the match to check source
+            pct_match = re.search(r"\d+(?:\.\d+)?%", m.group())
+            if pct_match and pct_match.group() in source_metrics:
+                return m.group()  # keep grounded metrics
+            scrubbed += 1
+            return _rep(m, None)
+
+        prose = re.sub(pattern, _do_replace, prose)
+
+    # --- Pass 2: Non-percentage specific numbers ---
+    # Build source numbers set (same sources as percentages)
+    source_numbers = set()
+    for pct in source_metrics:
+        source_numbers.add(pct.rstrip("%"))
+    # Also collect raw numbers from source text
+    source_text = " ".join(str(v) for v in source_metrics)
+    source_numbers.update(re.findall(r"\d+", source_text))
+
+    num_patterns = [
+        # "N hours" → "hours" (remove specific number)
+        (r"\d+\s+hours?", "hours"),
+        # "N minutes" → "minutes"
+        (r"\d+\s+minutes?", "minutes"),
+        # "Nms" or "N ms" → "sub-second"
+        (r"\d+\s*ms\b", "sub-second"),
+        # "N-N months" → "several months"
+        (r"\d+[\s\u2013-]+\d+\s+months?", "several months"),
+        # "N months" → "several months"
+        (r"\d+\s+months?", "several months"),
+        # "N seconds" → "seconds"
+        (r"\d+[\s\u2013-]*\d*\s*seconds?", "seconds"),
+    ]
+
+    for pattern, replacement in num_patterns:
+        for m in reversed(list(re.finditer(pattern, prose))):
+            # Extract the number to check against source
+            num = re.search(r"\d+", m.group())
+            if num and num.group() in source_numbers:
+                continue  # grounded
+            prose = prose[:m.start()] + replacement + prose[m.end():]
+            scrubbed += 1
+
+    return prose, scrubbed
+
+
+def _build_speaker_set(data: dict) -> set[str]:
+    """Build a set of known speaker names from schedule data."""
+    speakers: set[str] = set()
+    for session in data.get("_schedule", []):
+        for sp in session.get("speakers", []):
+            name = sp.get("name", "").strip()
+            if name:
+                speakers.add(name.lower())
+                # Also add individual name parts for partial matching
+                parts = name.split()
+                if len(parts) >= 2:
+                    speakers.add(parts[-1].lower())  # last name
+    return speakers
+
+
+def _scrub_fabricated_speakers(
+    prose: str, known_speakers: set[str],
+) -> tuple[str, int]:
+    """Remove fabricated speaker attributions from prose.
+
+    Returns (scrubbed_prose, removal_count).
+    """
+    scrubbed = 0
+    # Patterns: "speaker X noted", "X cautioned", "Dr. X's framework"
+    attr_patterns = [
+        # "speaker Dr. Lena Martinez cautioned that..."
+        (
+            r"(?:,\s*)?(?:though\s+)?speaker\s+"
+            r"(?:(?:Dr|Prof)\.?\s+)?"
+            r"[A-Z][a-zà-ÿ]+(?:\s+[A-Z][a-zà-ÿ]+)+"
+            r"\s+(?:cautioned|noted|emphasized|argued|stated|observed|highlighted)",
+            lambda m: ", though speakers cautioned",
+        ),
+        # "presented by Dr. Lena Martinez, co-founder"
+        (
+            r"(?:presented by|by)\s+"
+            r"(?:(?:Dr|Prof)\.?\s+)?"
+            r"[A-Z][a-zà-ÿ]+(?:\s+[A-Z][a-zà-ÿ]+)+"
+            r"(?:\s*,\s*(?:co-founder|engineer|architect|lead|director|CTO|CEO|VP)[^,.)]*)?",
+            None,  # needs per-match check
+        ),
+        # "Dr. Lena Müller's framework" — possessive attribution
+        (
+            r"(?:Dr|Prof)\.?\s+"
+            r"[A-Z][a-zà-ÿ]+(?:\s+[A-Z][a-zà-ÿ]+)+"
+            r"['\u2019]s\s+\w+",
+            None,  # needs per-match check
+        ),
+    ]
+
+    for pattern, fixed_replacement in attr_patterns:
+        for m in re.finditer(pattern, prose):
+            # Extract the name from the match
+            name_match = re.search(
+                r"(?:(?:Dr|Prof)\.?\s+)?([A-Z][a-zà-ÿ]+(?:\s+[A-Z][a-zà-ÿ]+)+)",
+                m.group(),
+            )
+            if not name_match:
+                continue
+            name = name_match.group(1)
+            name_lower = name.lower()
+            # Check if any part matches a known speaker
+            if any(part in known_speakers for part in name_lower.split()):
+                continue
+            if name_lower in known_speakers:
+                continue
+
+            scrubbed += 1
+            if fixed_replacement and callable(fixed_replacement):
+                prose = prose.replace(m.group(), fixed_replacement(m), 1)
+            else:
+                # Remove the attribution phrase
+                prose = prose.replace(m.group(), "", 1)
+                # Clean up resulting double spaces or orphaned commas
+                prose = re.sub(r"  +", " ", prose)
+                prose = re.sub(r" ,", ",", prose)
+
+    return prose, scrubbed
+
+
 SYSTEM_PROMPT = """\
-You are a technical intelligence analyst writing a conference briefing section \
-for a cloud-native engineering team. Write analytical prose, not bullet lists. \
+You are a technical analyst writing a conference briefing for a cloud-native \
+engineering team. Write clear, direct prose. Use ### subheadings to break the \
+section into 2-4 logical parts. Mix prose paragraphs with short lists (3-5 items) \
+where they improve scannability. Vary your opening — do NOT start with \
+"KubeCon EU 2026 revealed a critical..." or similar generic openers. \
 Reference talks by their exact title as given in the data. Attribute claims to \
 speakers using only the names provided in the data — do not invent speaker names. \
 Distinguish production evidence from theoretical claims or vendor demos. \
-Do not invent specific metrics, percentages, or numbers not present in the provided analyses."""
+Do not invent specific metrics, percentages, or numbers not present in the \
+provided analyses. When you want to quantify something but lack a specific \
+number from the data, use qualitative language (e.g., "significant reduction", \
+"roughly half") instead of inventing a percentage."""
 
 # --- Per-section-type prompts ---
 
@@ -33,13 +389,15 @@ Here are the individual talk analyses for this cluster:
 IMPORTANT — these are the ONLY valid talk titles for citations. Use exact titles:
 {available_titles}
 
-Write ~{word_budget} words of analytical markdown prose. Requirements:
-- Open with the key narrative thread connecting these talks.
+Write ~{word_budget} words of analytical markdown. Requirements:
+- Start with a specific, concrete finding — NOT a general statement about the conference.
+- Use 2-3 markdown subheadings (###) to organize the analysis logically.
 - Reference talks using their exact titles from the data above.
 - Attribute claims to speakers only if their names appear in the talk data.
 - Highlight where production evidence differs from theoretical claims.
 - Call out the 2-3 most important talks worth watching and why.
-- End with implications for practitioners.
+- End with a concise "what this means for practitioners" paragraph.
+- Do NOT use cliches like "three themes emerged" or "the most impactful talks were."
 
 Also return:
 - citations: For each specific claim that references a talk, include a citation \
@@ -56,8 +414,10 @@ Cluster synthesis:
 
 Recommended talks: {recommended_talks}
 
-Write ~{word_budget} words as 1-2 paragraphs of analytical markdown prose. Name the key \
-technology or trend and the top talk worth watching (use exact talk titles from the data).
+Write ~{word_budget} words. Name the key technology or trend and the top talk \
+worth watching (use exact talk titles from the data). If the data is thin, write \
+a short honest summary — do NOT pad with generic statements or say "no specific \
+talks were highlighted." If there is little to say, say what there is and stop.
 
 Return citations using exact talk titles (needs_quote=false for briefs) \
 and a key_takeaway sentence."""
@@ -79,69 +439,113 @@ Company presence (top 20):
 Total talks analyzed: {talk_count}
 Number of topic clusters: {cluster_count}
 
-Write ~{word_budget} words of analytical markdown prose. Paint the overall landscape: \
+Write ~{word_budget} words of markdown. Use ### subheadings. Cover: \
 what topics dominated, which companies were most active, how tracks were distributed, \
-and what the conference's center of gravity was. Do not use bullet lists.
+and what the conference's center of gravity was. Start with the most surprising or \
+important finding, not a generic overview.
 
 Return an empty citations list and a key_takeaway sentence."""
 
 CROSS_CUTTING_PROMPT = """\
 Write a cross-cutting themes section for {conference_name}.
 
+{prior_chapters_note}
+
 Themes that span multiple clusters:
 {themes_json}
 
-Write ~{word_budget} words of analytical markdown prose. For each theme, explain how \
-it manifests across different topic areas and why it matters. Draw connections \
-between seemingly unrelated clusters.
+Write ~{word_budget} words of markdown with a ### subheading per theme. For each \
+theme, explain how it manifests across different topic areas and why it matters. \
+Draw connections between seemingly unrelated clusters. Reference earlier chapters \
+by name instead of repeating their analysis.
 
 Return citations for claims referencing specific talks (needs_quote=false) and a key_takeaway."""
 
 TENSIONS_PROMPT = """\
 Write a tensions and debates section for {conference_name}.
 
+The following chapters provide additional context: {prior_chapter_titles}
+You may reference them, but write a COMPLETE analysis of each tension.
+
 Tensions identified across clusters:
 {tensions_json}
 
-Write ~{word_budget} words of analytical markdown prose. Frame each tension as a genuine \
-debate with legitimate arguments on both sides. Note the severity and practical \
-implications for practitioners who must choose a side.
+Write a FULL section of at least {word_budget} words of markdown with a ### subheading \
+per tension. For each tension, write 1-2 substantial paragraphs that:
+- Frame it as a genuine debate with legitimate arguments on both sides
+- Cite specific talks or technologies on each side
+- Note the severity and practical implications for practitioners
+Do NOT abbreviate — each tension deserves thorough treatment.
 
 Return citations (needs_quote=true for strong opposing claims) and a key_takeaway."""
 
 MATURITY_PROMPT = """\
 Write a technology maturity assessment section for {conference_name}.
 
-Maturity landscape (technology radar):
+{prior_chapters_note}
+
+Maturity landscape (technology radar — entries across ALL rings):
 {maturity_json}
 
-Write ~{word_budget} words of analytical markdown prose. Organize by maturity ring \
-(Adopt, Trial, Assess, Hold). For each ring, explain which technologies belong there \
-and why based on the evidence quality. This section should help practitioners decide \
-what to invest in now vs. watch for later.
+Write ~{word_budget} words of markdown with a ### subheading per ring \
+(Adopt, Trial, Assess, Hold). Prioritize DEPTH over breadth:
+- **Adopt**: Pick the 3-4 most impactful technologies. For each, write 2-3 \
+sentences explaining the production evidence and what adopters should know.
+- **Trial**: Pick 2-3. Explain what validation is still needed.
+- **Assess**: Pick 2-3. Explain what blocks adoption.
+- **Hold**: Name anything to deprioritize and why.
+
+If you can only name a technology but cannot explain the evidence for its \
+placement, omit it. A reader should finish this section knowing exactly what \
+to invest in and what to wait on.
 
 Return citations (needs_quote=false) and a key_takeaway."""
 
 ACTIONS_PROMPT = """\
 Write a recommended actions section for {conference_name}.
 
-Recommended actions synthesized across all clusters:
+{prior_chapters_note}
+
+Recommended actions grouped by readiness level:
 {actions_json}
 
 Evaluation topics the team cares about:
 {eval_topics}
 
-Write ~{word_budget} words of analytical markdown prose. Group actions by urgency \
-(immediate, next quarter, long-term). For each action, state what to do, why, and \
-what evidence supports it. Be specific and actionable.
+Write ~{word_budget} words of markdown with these ### subheadings:
+- **Start Now**: 3-4 actions backed by production evidence. Low adoption risk.
+- **Evaluate**: 2-3 actions with strong signal but needing validation in your env.
+- **Track**: 1-2 emerging directions not ready for production yet.
+
+Each action heading should be the ACTION ITSELF (e.g., "Adopt Kyverno MCP for \
+multi-cluster governance"), NOT a talk title. Under each, state what to do, why, \
+and what evidence supports it. Consolidate similar actions from different clusters.
 
 Return citations (needs_quote=false) and a key_takeaway."""
+
+
+def _prior_chapters_note(data: dict) -> str:
+    """Build a note listing deep-dive chapters for repetition reduction (2D)."""
+    outline_sections = data.get("_outline_sections", [])
+    titles = [
+        s["title"] for s in outline_sections
+        if s.get("section_type") in ("cluster_deep_dive", "cluster_brief")
+    ]
+    if not titles:
+        return ""
+    title_list = "\n".join(f"- {t}" for t in titles)
+    return (
+        f"These topics have dedicated chapters earlier in this report:\n"
+        f"{title_list}\n"
+        f"Reference them by name rather than repeating their analysis. "
+        f"Focus on NEW synthesis and connections."
+    )
 
 
 def _load_analysis_data(config: Config) -> dict:
     """Load all analysis files needed for drafting."""
     data_dir = config.data_dir
-    return {
+    result = {
         "agenda": load_json_file(data_dir / "analysis_agenda.json")
         if (data_dir / "analysis_agenda.json").exists()
         else {},
@@ -158,6 +562,12 @@ def _load_analysis_data(config: Config) -> dict:
         if (data_dir / "analysis_recordings.json").exists()
         else {},
     }
+    # Load schedule for speaker validation
+    schedule_path = data_dir / "schedule_clean.json"
+    result["_schedule"] = (
+        load_json_file(schedule_path) if schedule_path.exists() else []
+    )
+    return result
 
 
 def _condense_talk(talk: dict) -> dict:
@@ -308,6 +718,7 @@ def _draft_section(
         recordings = data["recordings"]
         prompt = CROSS_CUTTING_PROMPT.format(
             conference_name=conf_name,
+            prior_chapters_note=_prior_chapters_note(data),
             themes_json=json.dumps(
                 recordings.get("cross_cutting_themes", []),
                 indent=2, ensure_ascii=False,
@@ -318,8 +729,13 @@ def _draft_section(
 
     elif section_type == "tensions":
         recordings = data["recordings"]
+        chapter_titles = [
+            s["title"] for s in data.get("_outline_sections", [])
+            if s.get("section_type") in ("cluster_deep_dive", "cluster_brief")
+        ]
         prompt = TENSIONS_PROMPT.format(
             conference_name=conf_name,
+            prior_chapter_titles=", ".join(chapter_titles) if chapter_titles else "none",
             tensions_json=json.dumps(
                 recordings.get("tensions", []),
                 indent=2, ensure_ascii=False,
@@ -329,25 +745,52 @@ def _draft_section(
         max_tokens = 4096
 
     elif section_type == "maturity":
-        recordings = data["recordings"]
+        # Aggregate maturity data from all clusters (richer than global summary)
+        evidence_rank = {
+            "production_proven": 4, "benchmarked": 3, "case_study": 2, "anecdotal": 1,
+        }
+        by_tech: dict[str, dict] = {}
+        for cluster in data.get("clusters", []):
+            for item in cluster.get("maturity_landscape", []):
+                tech = item.get("technology", "")
+                if not tech:
+                    continue
+                rank = evidence_rank.get(item.get("evidence_quality", ""), 0)
+                if tech not in by_tech or rank > evidence_rank.get(
+                    by_tech[tech].get("evidence_quality", ""), 0,
+                ):
+                    by_tech[tech] = {**item, "source_cluster": cluster.get("cluster_name", "")}
+        maturity_data = sorted(by_tech.values(), key=lambda x: x.get("ring", "assess"))
+        # Fall back to global data if clusters have nothing
+        if not maturity_data:
+            maturity_data = data["recordings"].get("maturity_landscape", [])
         prompt = MATURITY_PROMPT.format(
             conference_name=conf_name,
-            maturity_json=json.dumps(
-                recordings.get("maturity_landscape", []),
-                indent=2, ensure_ascii=False,
-            ),
+            prior_chapters_note=_prior_chapters_note(data),
+            maturity_json=json.dumps(maturity_data, indent=2, ensure_ascii=False),
             word_budget=word_budget,
         )
         max_tokens = 4096
 
     elif section_type == "actions":
-        recordings = data["recordings"]
+        # Aggregate actions from all clusters for better urgency coverage
+        by_urgency: dict[str, list] = {
+            "immediate": [], "next_quarter": [], "long_term": [],
+        }
+        for cluster in data.get("clusters", []):
+            for action in cluster.get("recommended_actions", []):
+                urgency = action.get("urgency", "immediate")
+                entry = {**action, "source_cluster": cluster.get("cluster_name", "")}
+                by_urgency.setdefault(urgency, []).append(entry)
+        # Fall back to global data if clusters have nothing
+        if not any(by_urgency.values()):
+            for action in data["recordings"].get("recommended_actions", []):
+                urgency = action.get("urgency", "immediate")
+                by_urgency.setdefault(urgency, []).append(action)
         prompt = ACTIONS_PROMPT.format(
             conference_name=conf_name,
-            actions_json=json.dumps(
-                recordings.get("recommended_actions", []),
-                indent=2, ensure_ascii=False,
-            ),
+            prior_chapters_note=_prior_chapters_note(data),
+            actions_json=json.dumps(by_urgency, indent=2, ensure_ascii=False),
             eval_topics="\n".join(f"- {t}" for t in config.analyze.eval_topics),
             word_budget=word_budget,
         )
@@ -366,28 +809,49 @@ def _draft_section(
     result["section_id"] = section["section_id"]
     result["title"] = title
 
-    # Post-process: reject citations referencing non-existent talks
+    # Post-process: reconcile paraphrased titles to real ones
     all_talk_titles = {t["title"] for t in data["talks"] if t.get("title")}
+
+    # Reconcile citations
     citations = result.get("citations", [])
     if citations:
-        valid = []
-        for c in citations:
-            cited = c.get("talk_title", "")
-            if cited in all_talk_titles:
-                valid.append(c)
-            else:
-                # Try prefix match (title before " - Speaker, Org")
-                prefix = cited.split(" - ")[0].strip()
-                matched = any(t.startswith(prefix) for t in all_talk_titles if prefix)
-                if matched:
-                    valid.append(c)
-        rejected = len(citations) - len(valid)
-        if rejected:
+        reconciled, matched, rejected = _reconcile_citations(citations, all_talk_titles)
+        result["citations"] = reconciled
+        if matched or rejected:
             console.print(
-                f"  {tag('report')} [yellow]{title[:40]} — "
-                f"rejected {rejected}/{len(citations)} fabricated citation(s)[/yellow]"
+                f"  {tag('report')} {title[:40]} — citations: "
+                f"{matched} reconciled, {rejected} rejected"
             )
-        result["citations"] = valid
+
+    # Reconcile talk titles in prose
+    prose, subs = _reconcile_prose_titles(result.get("prose", ""), all_talk_titles)
+    if subs:
+        result["prose"] = prose
+        console.print(
+            f"  {tag('report')} {title[:40]} — {subs} title(s) reconciled in prose"
+        )
+
+    # Scrub ungrounded metrics
+    source_metrics = _build_source_metrics(data)
+    result["prose"], metric_scrubs = _scrub_ungrounded_metrics(
+        result["prose"], source_metrics,
+    )
+    if metric_scrubs:
+        console.print(
+            f"  {tag('report')} {title[:40]} — "
+            f"scrubbed {metric_scrubs} ungrounded metric(s)"
+        )
+
+    # Scrub fabricated speakers
+    known_speakers = _build_speaker_set(data)
+    result["prose"], speaker_scrubs = _scrub_fabricated_speakers(
+        result["prose"], known_speakers,
+    )
+    if speaker_scrubs:
+        console.print(
+            f"  {tag('report')} {title[:40]} — "
+            f"scrubbed {speaker_scrubs} fabricated speaker(s)"
+        )
 
     return result
 
@@ -415,6 +879,7 @@ def draft_sections(config: Config, outline: dict) -> list[dict]:
             return load_json_file(out_path)
 
     data = _load_analysis_data(config)
+    data["_outline_sections"] = sections  # for _prior_chapters_note
 
     console.print(
         f"{tag('report')} Drafting {len(sections)} sections..."

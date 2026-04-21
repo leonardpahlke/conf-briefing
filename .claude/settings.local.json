@@ -148,7 +148,8 @@
       "WebFetch(domain:www.cognitivetoday.com)",
       "WebFetch(domain:belitsoft.com)",
       "Bash(chmod +x:*)",
-      "Bash(bash -x scripts/deploy-book.sh kubecon-eu-2026)"
+      "Bash(bash -x scripts/deploy-book.sh kubecon-eu-2026)",
+      "Bash(jobs -l)"
     ]
   }
 }

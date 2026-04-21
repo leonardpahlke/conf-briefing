@@ -1,6 +1,7 @@
 """Phase 4: Executive summary generation + final Jinja2 assembly."""
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -36,7 +37,11 @@ main message. Cover the most important findings across all sections. Close with 
 overall direction and what it means for practitioners. Write for a reader who will \
 only read this summary.
 - key_findings: 5-7 bullet points, each a single sentence capturing a major finding. \
-Be specific — include technology names, company examples, or metrics where possible.
+Be specific — include technology names and company examples. Only cite a metric \
+(percentage, number) if you can attribute it to the SAME section and technology \
+it appears with in the data. Do NOT combine a metric from one section with a \
+technology from a different section. Do NOT repeat the same metric for different \
+technologies — use distinct evidence for each finding.
 - top_actions: 3-5 most urgent recommended actions for the team. Each should be \
 specific and actionable (e.g., "Evaluate Kueue for batch ML scheduling" not \
 "Consider new technologies")."""
@@ -53,15 +58,17 @@ def _generate_executive_summary(
         if kt:
             takeaways.append(f"- **{section['title']}**: {kt}")
 
-    # Build a body preview (truncated to fit context)
-    body_parts = []
+    # Build structured per-section summaries (preserves metric attribution)
+    section_summaries = []
     for s in sections:
-        body_parts.append(f"## {s['title']}\n\n{s['prose']}")
-    body = "\n\n---\n\n".join(body_parts)
-    # Truncate to ~15k chars to leave room for prompt overhead
-    body_preview = body[:15000]
-    if len(body) > 15000:
-        body_preview += "\n\n[... truncated for context ...]"
+        kt = s.get("key_takeaway", "")
+        prose_preview = s["prose"][:500]
+        section_summaries.append(
+            f"## {s['title']}\n"
+            f"Key takeaway: {kt}\n"
+            f"Preview: {prose_preview}..."
+        )
+    body_preview = "\n\n---\n\n".join(section_summaries)
 
     prompt = EXEC_SUMMARY_PROMPT.format(
         conference_name=config.conference.name,
@@ -276,6 +283,79 @@ def _slug(text: str) -> str:
     return s.strip("-")[:60]
 
 
+# Charts to embed in specific sections
+_SECTION_CHARTS: dict[str, list[tuple[str, str]]] = {
+    "landscape": [
+        ("images/track_distribution.svg", "Track Distribution"),
+        ("images/company_presence.svg", "Company Presence"),
+        ("images/topic_frequency.svg", "Top Conference Topics"),
+    ],
+    "maturity": [
+        ("images/maturity_strip.svg", "Technology Maturity Landscape"),
+    ],
+}
+
+# Role-based reading guide: role → list of section_id keywords
+_ROLE_SECTIONS: dict[str, list[str]] = {
+    "Platform Engineers": [
+        "cluster_platform", "cluster_operators", "cluster_scheduling", "actions",
+    ],
+    "SREs & Operations": [
+        "cluster_observability", "cluster_ai_ml", "maturity", "actions",
+    ],
+    "Security Leads": [
+        "cluster_security", "cluster_supply_chain", "tensions",
+    ],
+}
+
+_BRIEF_MERGE_THRESHOLD = 2500  # chars — briefs shorter than this get merged
+
+
+def _promote_bold_to_headings(prose: str) -> str:
+    """Promote **Bold text** at paragraph starts to ### headings."""
+    return re.sub(
+        r"\n\n\*\*([^*]+)\*\*\s*\n",
+        r"\n\n### \1\n\n",
+        prose,
+    )
+
+
+def _add_crossrefs(
+    page: str,
+    appendix_anchors: dict[str, str],
+    section_links: dict[str, str],
+    is_synthesis: bool,
+) -> str:
+    """Add links to appendix entries and other chapters in a section page."""
+    # Link talk titles to appendix entries
+    for talk_title, anchor in appendix_anchors.items():
+        escaped = re.escape(talk_title)
+        # **Talk Title** → **[Talk Title](appendix.md#anchor)**
+        page = re.sub(
+            rf"\*\*({escaped})\*\*",
+            f"**[\\1]({anchor})**",
+            page,
+        )
+        # *Talk Title* → *[Talk Title](appendix.md#anchor)*
+        page = re.sub(
+            rf"(?<!\*)\*({escaped})\*(?!\*)",
+            f"*[\\1]({anchor})*",
+            page,
+        )
+
+    # In synthesis sections, link cluster/section name mentions to chapters
+    if is_synthesis:
+        for sec_title, target in section_links.items():
+            escaped = re.escape(sec_title)
+            page = re.sub(
+                rf"\*({escaped})\*",
+                f"*[\\1]({target})*",
+                page,
+            )
+
+    return page
+
+
 def _build_mdbook_src(
     config: Config,
     outline: dict,
@@ -284,19 +364,14 @@ def _build_mdbook_src(
     appendix_talks: list[dict],
     context: dict,
 ) -> None:
-    """Generate mdBook source files from report data.
-
-    Creates:
-      reports/book/book.toml
-      reports/book/src/SUMMARY.md
-      reports/book/src/index.md          (exec summary)
-      reports/book/src/<section>.md       (one per section)
-      reports/book/src/appendix.md       (curated talk list)
-      reports/book/src/images/           (symlink to report images)
-    """
+    """Generate mdBook source files from report data."""
     reports_dir = config.data_dir / "reports"
     book_dir = reports_dir / "book"
     src_dir = book_dir / "src"
+    # Clean stale .md files from previous runs (preserve images symlink)
+    if src_dir.exists():
+        for old_file in src_dir.glob("*.md"):
+            old_file.unlink()
     src_dir.mkdir(parents=True, exist_ok=True)
 
     conf_name = config.conference.name
@@ -316,15 +391,30 @@ def _build_mdbook_src(
         if images_src.exists():
             images_link.symlink_to(images_src.resolve())
 
-    # Build section files and SUMMARY entries
+    # --- Classify sections: regular vs thin briefs (1B) ---
+    outline_specs = {
+        s["section_id"]: s for s in outline.get("sections", [])
+    }
+    regular_sections: list[dict] = []
+    thin_briefs: list[dict] = []
+    for section in sections:
+        sid = section.get("section_id", "")
+        spec = outline_specs.get(sid, {})
+        is_brief = spec.get("section_type") == "cluster_brief"
+        is_thin = len(section.get("prose", "")) < _BRIEF_MERGE_THRESHOLD
+        if is_brief and is_thin:
+            thin_briefs.append(section)
+        else:
+            regular_sections.append(section)
+
     summary_lines = ["# Summary\n"]
-    summary_lines.append(f"- [Executive Summary](./index.md)")
+    summary_lines.append("- [Executive Summary](./index.md)")
 
     # --- index.md: executive summary ---
     index_parts = [
         f"# Intelligence Briefing: {conf_name}\n",
         f"> {thesis}\n",
-        f"## Executive Summary\n",
+        "## Executive Summary\n",
         exec_summary.get("summary", ""),
         "\n### Key Findings\n",
     ]
@@ -333,16 +423,74 @@ def _build_mdbook_src(
     index_parts.append("\n### Recommended Actions\n")
     for action in exec_summary.get("top_actions", []):
         index_parts.append(f"- {action}")
+
+    # Chart: cluster relevance overview in exec summary (1A)
+    images_src = reports_dir / "images"
+    if (images_src / "cluster_relevance.svg").exists():
+        index_parts.append("\n### Topic Relevance\n")
+        index_parts.append("![Cluster Relevance](./images/cluster_relevance.svg)")
+
+    # Reading guide (1E)
+    section_file_map: dict[str, tuple[int, str, str]] = {}  # sid → (num, title, filename)
+    for i, sec in enumerate(regular_sections, 1):
+        sid = sec.get("section_id", "")
+        slug = f"{i:02d}-{_slug(sec['title'])}"
+        section_file_map[sid] = (i, sec["title"], f"{slug}.md")
+
+    index_parts.append("\n### Reading Guide\n")
+    for role, role_sids in _ROLE_SECTIONS.items():
+        links = []
+        for rsid in role_sids:
+            info = section_file_map.get(rsid)
+            if info:
+                num, title, fname = info
+                links.append(f"[{num}. {title}](./{fname})")
+        if links:
+            index_parts.append(f"- **{role}**: {', '.join(links)}")
+    # Short-on-time suggestion
+    cross_cut = section_file_map.get("cross_cutting")
+    actions_sec = section_file_map.get("actions")
+    if cross_cut and actions_sec:
+        index_parts.append(
+            f"- **Short on time?** Read this summary, then "
+            f"[{cross_cut[0]}. {cross_cut[1]}](./{cross_cut[2]}) and "
+            f"[{actions_sec[0]}. {actions_sec[1]}](./{actions_sec[2]})"
+        )
+
     index_parts.append(f"\n---\n\n*Generated {generated_at} using {model}*")
     (src_dir / "index.md").write_text("\n".join(index_parts))
 
-    # --- per-section files ---
-    for i, section in enumerate(sections, 1):
+    # --- Build lookups for cross-references (1D) ---
+    appendix_anchors: dict[str, str] = {}
+    if appendix_talks:
+        for talk in appendix_talks:
+            title = talk["title"]
+            appendix_anchors[title] = f"./appendix.md#{_slug(title)}"
+
+    section_links: dict[str, str] = {}
+    for _, title, fname in section_file_map.values():
+        section_links[title] = f"./{fname}"
+
+    synthesis_ids = {"cross_cutting", "tensions", "maturity", "actions"}
+
+    # --- Per-section files ---
+    for i, section in enumerate(regular_sections, 1):
         title = section["title"]
+        sid = section.get("section_id", "")
         slug = f"{i:02d}-{_slug(title)}"
         filename = f"{slug}.md"
 
-        page = f"# {i}. {title}\n\n{section['prose']}\n"
+        # 1C: promote bold openers to subheadings
+        prose = _promote_bold_to_headings(section["prose"])
+
+        page = f"# {i}. {title}\n\n{prose}\n"
+
+        # 1A: embed charts
+        charts = _SECTION_CHARTS.get(sid, [])
+        if charts:
+            for chart_path, caption in charts:
+                if (images_src / Path(chart_path).name).exists():
+                    page += f"\n![{caption}](./{chart_path})\n"
 
         quotes = section.get("quotes", [])
         if quotes:
@@ -357,10 +505,37 @@ def _build_mdbook_src(
                     page += f" at {m}:{s:02d}"
                 page += "\n"
 
+        # 1D: cross-references
+        page = _add_crossrefs(
+            page, appendix_anchors, section_links,
+            is_synthesis=sid in synthesis_ids,
+        )
+
         (src_dir / filename).write_text(page)
         summary_lines.append(f"- [{i}. {title}](./{filename})")
 
-    # --- appendix ---
+    # --- Merged brief notes (1B) ---
+    if thin_briefs:
+        brief_num = len(regular_sections) + 1
+        brief_filename = f"{brief_num:02d}-brief-notes.md"
+        brief_parts = [
+            "# Brief Notes\n",
+            "The following topics had limited conference coverage "
+            "but are noted for awareness.\n",
+        ]
+        for bf in thin_briefs:
+            prose = _promote_bold_to_headings(bf["prose"])
+            brief_parts.append(f"## {bf['title']}\n\n{prose}\n\n---\n")
+
+        brief_page = "\n".join(brief_parts)
+        brief_page = _add_crossrefs(
+            brief_page, appendix_anchors, section_links,
+            is_synthesis=False,
+        )
+        (src_dir / brief_filename).write_text(brief_page)
+        summary_lines.append(f"- [{brief_num}. Brief Notes](./{brief_filename})")
+
+    # --- Appendix ---
     if appendix_talks:
         appendix_parts = ["# Appendix: Selected Talk Summaries\n"]
         for talk in appendix_talks:
@@ -382,7 +557,8 @@ def _build_mdbook_src(
                     appendix_parts.append(f"- {kt}")
             if talk.get("tools_and_projects"):
                 appendix_parts.append(
-                    f"\n**Tools & Projects:** {', '.join(talk['tools_and_projects'])}"
+                    f"\n**Tools & Projects:** "
+                    f"{', '.join(talk['tools_and_projects'])}"
                 )
             appendix_parts.append("\n---\n")
 
@@ -392,7 +568,8 @@ def _build_mdbook_src(
     # --- SUMMARY.md ---
     (src_dir / "SUMMARY.md").write_text("\n".join(summary_lines) + "\n")
 
+    merged_note = f" ({len(thin_briefs)} merged into Brief Notes)" if thin_briefs else ""
     console.print(
         f"{tag('report')} mdBook sources saved to {book_dir} "
-        f"({len(sections)} chapters)"
+        f"({len(regular_sections)} chapters{merged_note})"
     )
