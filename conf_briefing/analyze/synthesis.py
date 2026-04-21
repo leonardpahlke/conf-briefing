@@ -211,6 +211,7 @@ def _condense_for_synthesis(analyses: list[dict]) -> list[dict]:
     """Trim per-talk analyses to essential fields for synthesis prompt."""
     keep_fields = [
         "title",
+        "speakers",
         "summary",
         "key_takeaways",
         "tools_and_projects",

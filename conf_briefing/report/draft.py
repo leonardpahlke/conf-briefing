@@ -2,7 +2,6 @@
 
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
 
 from conf_briefing.analyze.llm import query_llm_json
 from conf_briefing.config import Config
@@ -13,8 +12,10 @@ from conf_briefing.report.schemas import SectionDraft
 SYSTEM_PROMPT = """\
 You are a technical intelligence analyst writing a conference briefing section \
 for a cloud-native engineering team. Write analytical prose, not bullet lists. \
-Reference specific talks and speakers by name. Distinguish production evidence \
-from theoretical claims or vendor demos."""
+Reference talks by their exact title as given in the data. Attribute claims to \
+speakers using only the names provided in the data — do not invent speaker names. \
+Distinguish production evidence from theoretical claims or vendor demos. \
+Do not invent specific metrics, percentages, or numbers not present in the provided analyses."""
 
 # --- Per-section-type prompts ---
 
@@ -29,17 +30,22 @@ Here is the cluster synthesis (narrative, themes, tensions, technologies):
 Here are the individual talk analyses for this cluster:
 {talks_json}
 
+IMPORTANT — these are the ONLY valid talk titles for citations. Use exact titles:
+{available_titles}
+
 Write ~{word_budget} words of analytical markdown prose. Requirements:
 - Open with the key narrative thread connecting these talks.
-- Reference specific talks by title and speakers by name.
+- Reference talks using their exact titles from the data above.
+- Attribute claims to speakers only if their names appear in the talk data.
 - Highlight where production evidence differs from theoretical claims.
 - Call out the 2-3 most important talks worth watching and why.
 - End with implications for practitioners.
 
 Also return:
-- citations: For each specific claim that references a talk, include a citation. \
-Set needs_quote=true for quantitative claims, direct speaker attributions, or \
-strong assertions that would benefit from a verbatim transcript quote.
+- citations: For each specific claim that references a talk, include a citation \
+using the exact talk title from the data. Do not paraphrase or shorten talk titles. \
+Set needs_quote=true for quantitative claims or strong assertions that would benefit \
+from a verbatim transcript quote.
 - key_takeaway: A single sentence capturing this section's main insight."""
 
 BRIEF_PROMPT = """\
@@ -51,9 +57,10 @@ Cluster synthesis:
 Recommended talks: {recommended_talks}
 
 Write ~{word_budget} words as 1-2 paragraphs of analytical markdown prose. Name the key \
-technology or trend and the top talk worth watching.
+technology or trend and the top talk worth watching (use exact talk titles from the data).
 
-Return citations (needs_quote=false for briefs) and a key_takeaway sentence."""
+Return citations using exact talk titles (needs_quote=false for briefs) \
+and a key_takeaway sentence."""
 
 LANDSCAPE_PROMPT = """\
 Write a conference landscape overview for {conference_name}.
@@ -156,7 +163,7 @@ def _load_analysis_data(config: Config) -> dict:
 def _condense_talk(talk: dict) -> dict:
     """Trim a talk analysis to essential fields for section drafting."""
     keep = [
-        "title", "summary", "key_takeaways", "tools_and_projects",
+        "title", "speakers", "summary", "key_takeaways", "tools_and_projects",
         "problems_discussed", "evidence_quality", "speaker_perspective",
         "maturity_assessments", "caveats_and_concerns", "technology_stance",
     ]
@@ -241,12 +248,14 @@ def _draft_section(
         cluster_talks = _find_cluster_talks(
             data["agenda"], data["talks"], cluster_name
         )
+        available_titles = [t["title"] for t in cluster_talks if t.get("title")]
         prompt = DEEP_DIVE_PROMPT.format(
             title=title,
             conference_name=conf_name,
             guidance=f"Editorial guidance: {guidance}" if guidance else "",
             cluster_synthesis=json.dumps(cs, indent=2, ensure_ascii=False),
             talks_json=json.dumps(cluster_talks, indent=2, ensure_ascii=False),
+            available_titles="\n".join(f"- {t}" for t in available_titles),
             word_budget=word_budget,
         )
         max_tokens = 6144
@@ -356,6 +365,29 @@ def _draft_section(
     # Overwrite section_id and title from outline (avoid LLM paraphrasing)
     result["section_id"] = section["section_id"]
     result["title"] = title
+
+    # Post-process: reject citations referencing non-existent talks
+    all_talk_titles = {t["title"] for t in data["talks"] if t.get("title")}
+    citations = result.get("citations", [])
+    if citations:
+        valid = []
+        for c in citations:
+            cited = c.get("talk_title", "")
+            if cited in all_talk_titles:
+                valid.append(c)
+            else:
+                # Try prefix match (title before " - Speaker, Org")
+                prefix = cited.split(" - ")[0].strip()
+                matched = any(t.startswith(prefix) for t in all_talk_titles if prefix)
+                if matched:
+                    valid.append(c)
+        rejected = len(citations) - len(valid)
+        if rejected:
+            console.print(
+                f"  {tag('report')} [yellow]{title[:40]} — "
+                f"rejected {rejected}/{len(citations)} fabricated citation(s)[/yellow]"
+            )
+        result["citations"] = valid
 
     return result
 

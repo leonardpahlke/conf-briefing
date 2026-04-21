@@ -146,7 +146,9 @@
       "mcp__claude_ai_Mermaid_Chart__validate_and_render_mermaid_diagram",
       "WebFetch(domain:www.emergentmind.com)",
       "WebFetch(domain:www.cognitivetoday.com)",
-      "WebFetch(domain:belitsoft.com)"
+      "WebFetch(domain:belitsoft.com)",
+      "Bash(chmod +x:*)",
+      "Bash(bash -x scripts/deploy-book.sh kubecon-eu-2026)"
     ]
   }
 }

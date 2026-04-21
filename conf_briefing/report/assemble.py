@@ -46,17 +46,12 @@ def _generate_executive_summary(
     config: Config, outline: dict, sections: list[dict],
 ) -> dict:
     """Generate executive summary via LLM."""
-    # Build takeaways from section drafts
-    # Load the non-enriched drafts for key_takeaway field
-    reports_dir = config.data_dir / "reports"
-    drafts_path = reports_dir / "report_sections.json"
-    drafts = load_json_file(drafts_path) if drafts_path.exists() else sections
-
+    # Build takeaways from enriched sections (key_takeaway now propagates)
     takeaways = []
-    for draft in drafts:
-        kt = draft.get("key_takeaway", "")
+    for section in sections:
+        kt = section.get("key_takeaway", "")
         if kt:
-            takeaways.append(f"- **{draft['title']}**: {kt}")
+            takeaways.append(f"- **{section['title']}**: {kt}")
 
     # Build a body preview (truncated to fit context)
     body_parts = []

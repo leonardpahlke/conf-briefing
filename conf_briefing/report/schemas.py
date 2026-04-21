@@ -82,6 +82,8 @@ class EnrichedSection(BaseModel):
     title: str
     prose: str
     quotes: list[EnrichedQuote] = Field(default_factory=list)
+    citations: list[Citation] = Field(default_factory=list)
+    key_takeaway: str = ""
 
 
 # --- Phase 4: Assembly ---

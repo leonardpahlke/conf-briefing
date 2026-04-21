@@ -7,6 +7,7 @@ from conf_briefing.report.draft import draft_sections
 from conf_briefing.report.enrich import enrich_sections
 from conf_briefing.report.outline import generate_outline
 from conf_briefing.report.render import render_reports
+from conf_briefing.report.validate import run_validation
 
 __all__ = [
     "generate_outline",
@@ -14,6 +15,7 @@ __all__ = [
     "enrich_sections",
     "assemble_report",
     "render_reports",
+    "run_validation",
     "run_report",
 ]
 
@@ -69,6 +71,9 @@ def run_report(config: Config) -> None:
 
     # Phase 4: Assemble final report
     assemble_report(config, outline, enriched)
+
+    # Phase 5: Validate
+    run_validation(config, enriched)
 
     # Also render legacy templates
     render_reports(config)

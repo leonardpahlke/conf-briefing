@@ -178,6 +178,9 @@ def analyze_single_talk(config: Config, session: dict) -> dict | None:
     # Overwrite title with exact session title (avoid LLM paraphrasing)
     merged["title"] = session["title"]
 
+    # Carry speaker metadata through the pipeline (not LLM-generated)
+    merged["speakers"] = speakers
+
     # Post-processing: drop relationships where entity_a is empty
     if "relationships" in merged:
         merged["relationships"] = _filter_empty_relationships(merged["relationships"])

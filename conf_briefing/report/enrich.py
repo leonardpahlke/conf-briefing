@@ -53,13 +53,24 @@ Quotes to integrate:
 Return the updated prose as a single markdown string (no JSON wrapping)."""
 
 
+_QUERY_INDEX_IMPORT_WARNED = False
+
+
 def _query_for_quote(
     config: Config, claim: str, talk_title: str,
 ) -> dict | None:
     """Retrieve a transcript quote for a citation via ChromaDB."""
+    global _QUERY_INDEX_IMPORT_WARNED
     try:
         from conf_briefing.query.index import query_index
-    except Exception:
+    except Exception as e:
+        if not _QUERY_INDEX_IMPORT_WARNED:
+            _QUERY_INDEX_IMPORT_WARNED = True
+            console.print(
+                f"  {tag('report')} [red]Cannot import query_index: {e}. "
+                f"Enrichment will be skipped for all sections. "
+                f"Run 'just query <event> \"test\"' first to build the index.[/red]"
+            )
         return None
 
     # Search for transcript segments matching the claim
@@ -141,6 +152,8 @@ def _enrich_section(
             "title": section["title"],
             "prose": section["prose"],
             "quotes": [],
+            "citations": citations,
+            "key_takeaway": section.get("key_takeaway", ""),
         }
 
     # Cap the number of quotes
@@ -160,6 +173,8 @@ def _enrich_section(
             "title": section["title"],
             "prose": section["prose"],
             "quotes": [],
+            "citations": citations,
+            "key_takeaway": section.get("key_takeaway", ""),
         }
 
     # Integration pass: weave quotes into prose via LLM
@@ -186,6 +201,8 @@ def _enrich_section(
         "title": section["title"],
         "prose": enriched_prose,
         "quotes": quotes,
+        "citations": citations,
+        "key_takeaway": section.get("key_takeaway", ""),
     }
 
 
@@ -202,18 +219,20 @@ def enrich_sections(
     out_path = reports_dir / "report_sections_enriched.json"
     sections_path = reports_dir / "report_sections.json"
 
+    def _pass_through(s: dict) -> dict:
+        """Convert a draft section to enriched format, preserving all fields."""
+        return {
+            "section_id": s["section_id"],
+            "title": s["title"],
+            "prose": s["prose"],
+            "quotes": [],
+            "citations": s.get("citations", []),
+            "key_takeaway": s.get("key_takeaway", ""),
+        }
+
     if config.report.skip_enrichment:
         console.print(f"{tag('report')} Enrichment skipped (skip_enrichment=true).")
-        # Pass through sections as EnrichedSection format
-        result = [
-            {
-                "section_id": s["section_id"],
-                "title": s["title"],
-                "prose": s["prose"],
-                "quotes": [],
-            }
-            for s in sections
-        ]
+        result = [_pass_through(s) for s in sections]
         out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False))
         return result
 
@@ -233,15 +252,7 @@ def enrich_sections(
             f"Run 'index' first for transcript evidence, or set "
             f"skip_enrichment=true. Skipping enrichment.[/yellow]"
         )
-        result = [
-            {
-                "section_id": s["section_id"],
-                "title": s["title"],
-                "prose": s["prose"],
-                "quotes": [],
-            }
-            for s in sections
-        ]
+        result = [_pass_through(s) for s in sections]
         out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False))
         return result
 
@@ -287,12 +298,7 @@ def enrich_sections(
                     )
                 except Exception as e:
                     # Fallback: use draft as-is
-                    enriched.append({
-                        "section_id": section["section_id"],
-                        "title": section["title"],
-                        "prose": section["prose"],
-                        "quotes": [],
-                    })
+                    enriched.append(_pass_through(section))
                     pb.update(
                         task, advance=1,
                         description=f"{tag('report')} {title} [yellow]fallback[/yellow]",
@@ -303,15 +309,7 @@ def enrich_sections(
                     )
 
     # Combine enriched deep dives with pass-through sections
-    pass_through_enriched = [
-        {
-            "section_id": s["section_id"],
-            "title": s["title"],
-            "prose": s["prose"],
-            "quotes": [],
-        }
-        for s in pass_through
-    ]
+    pass_through_enriched = [_pass_through(s) for s in pass_through]
 
     all_sections = enriched + pass_through_enriched
 

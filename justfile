@@ -137,6 +137,10 @@ extract-check event:
 report-book event:
     cd events/{{event}}/reports/book && mdbook serve --open
 
+# Deploy an event's report book to GitHub Pages
+deploy-book event:
+    bash scripts/deploy-book.sh {{event}}
+
 # --- Docs ---
 
 # Build the mdbook documentation
